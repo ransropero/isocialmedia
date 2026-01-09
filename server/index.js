@@ -15,6 +15,9 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve static files from the React client
+app.use(express.static(path.join(__dirname, '../client/out')));
+
 // Routes
 app.use('/api/posts', postRoutes);
 app.use('/api/accounts', require('./routes/accountRoutes'));
@@ -31,6 +34,11 @@ sequelize.sync().then(() => {
 cron.schedule('* * * * *', () => {
     console.log('Running scheduled post check...');
     publishDuePosts();
+});
+
+// Catch-all route to serve React's index.html for any unknown routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/out', 'index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
