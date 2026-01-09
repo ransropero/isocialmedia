@@ -1,0 +1,27 @@
+services:
+  server:
+    build: ./server
+    container_name: instagram-scheduler-server
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./server/database.sqlite:/app/database.sqlite
+      - ./server/uploads:/app/uploads
+    networks:
+      - app-network
+    restart: always
+
+  client:
+    build: ./client
+    container_name: instagram-scheduler-client
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    networks:
+      - app-network
+    restart: always
+
+networks:
+  app-network:
+    driver: bridge
