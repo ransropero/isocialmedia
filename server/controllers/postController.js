@@ -1,13 +1,15 @@
 const Post = require('../models/Post');
+const { uploadToSupabase } = require('../services/storage');
 
 exports.createPost = async (req, res) => {
     try {
         const { caption, scheduledTime, accountId, type, recurrenceInterval, recurrenceTotal } = req.body;
-        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-        if (!imageUrl) {
+        if (!req.file) {
             return res.status(400).json({ error: 'Image is required' });
         }
+
+        const imageUrl = await uploadToSupabase(req.file);
 
         let recurrenceGroupId = null;
         let recurrenceCurrent = 1;

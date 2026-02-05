@@ -5,9 +5,14 @@ const { decrypt } = require('../utils/encryption');
 const fs = require('fs');
 const path = require('path');
 
+const { getS3Object } = require('./storage');
+
 // Helper to get file buffer
 const getFile = async (filePath) => {
-    // Construct absolute path based on process.cwd()
+    if (filePath.startsWith('http')) {
+        return await getS3Object(filePath);
+    }
+    // Fallback for legacy local files
     const relativePath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
     const absolutePath = path.resolve(process.cwd(), relativePath);
     return fs.readFileSync(absolutePath);

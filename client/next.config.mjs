@@ -1,5 +1,5 @@
 const nextConfig = {
-  output: 'export',
+  // output: 'export', // Removed to support dynamic routes without generateStaticParams
   images: {
     unoptimized: true,
   },

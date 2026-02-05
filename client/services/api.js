@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: '/api',
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
 });
 
 // Auth Interceptor
@@ -48,5 +48,15 @@ export const updatePost = (id, data) => api.put(`/posts/${id}`, data);
 export const getAccounts = () => api.get('/accounts');
 export const createAccount = (data) => api.post('/accounts', data);
 export const deleteAccount = (id) => api.delete(`/accounts/${id}`);
+
+// Bio Pages
+export const getMyBioPages = () => api.get('/bio/my');
+export const getBioPageBySlug = (slug) => api.get(`/bio/slug/${slug}`);
+export const createBioPage = (data) => api.post('/bio', data);
+export const updateBioPage = (id, data) => api.put(`/bio/${id}`, data);
+export const deleteBioPage = (id) => api.delete(`/bio/${id}`);
+export const uploadBioImage = (formData) => api.post('/bio/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+});
 
 export default api;

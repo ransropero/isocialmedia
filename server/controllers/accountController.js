@@ -42,10 +42,26 @@ exports.createAccount = async (req, res) => {
             });
 
         } catch (igError) {
-            console.error('Instagram Login Error:', igError);
+            console.error('Instagram Login Error Detail:', {
+                name: igError.name,
+                message: igError.message,
+                stack: igError.stack
+            });
+
             let errorMessage = 'Failed to verify Instagram credentials.';
-            if (igError.message.includes('password')) errorMessage = 'Invalid password.';
-            if (igError.message.includes('challenge')) errorMessage = 'Account challenge required. Please log in via the app and confirm activity.';
+            const message = igError.message.toLowerCase();
+
+            if (message.includes('password') || igError.name === 'IgLoginBadPasswordError') {
+                errorMessage = 'Invalid password or login flagged by Instagram. Try resetting your password or checking your email for a login alert.';
+            } else if (message.includes('challenge') || igError.name === 'IgCheckpointError') {
+                errorMessage = 'Account challenge required. Please log in via the app and confirm "It was me" in the security notifications.';
+            } else if (message.includes('two-factor') || igError.name === 'IgLoginTwoFactorRequiredError') {
+                errorMessage = 'Two-factor authentication is enabled. Please disable it temporarily to link the account.';
+            } else if (message.includes('rate limit') || message.includes('spam')) {
+                errorMessage = 'Instagram has rate-limited this request. Please try again later.';
+            } else if (message.includes('email to help you get back')) {
+                errorMessage = 'Instagram suggests sending an email to recover your account. Please log in to the official app first.';
+            }
 
             return res.status(400).json({ error: errorMessage });
         }

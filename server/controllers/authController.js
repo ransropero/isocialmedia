@@ -17,9 +17,13 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'User already exists' });
         }
 
+        const isFirstUser = (await User.count()) === 0;
+
         const user = await User.create({
             email,
-            password
+            password,
+            hasAccess: isFirstUser,
+            isAdmin: isFirstUser
         });
 
         res.status(201).json({

@@ -22,6 +22,7 @@ app.use(express.static(path.join(__dirname, '../client/out')));
 app.use('/api/posts', postRoutes);
 app.use('/api/accounts', require('./routes/accountRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/bio', require('./routes/bioRoutes'));
 
 // Sync Database
 sequelize.sync().then(() => {
