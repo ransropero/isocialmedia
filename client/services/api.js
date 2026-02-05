@@ -1,7 +1,21 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        if (hostname !== 'localhost') {
+            // Se estiver em produção e sem variável de ambiente, assume-se que o backend 
+            // está disponível no mesmo host sob o path /api (via proxy) ou na porta 5001.
+            // Para Cloud Run com container único, geralmente precisa de uma URL completa ou proxy.
+            return window.location.origin + '/api';
+        }
+    }
+    return 'http://localhost:5001/api';
+};
+
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
+    baseURL: getBaseURL(),
 });
 
 // Auth Interceptor

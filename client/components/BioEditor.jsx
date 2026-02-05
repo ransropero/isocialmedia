@@ -191,7 +191,7 @@ export default function BioEditor() {
                             <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-200 dark:border-zinc-700">
                                 {profileImageUrl ? (
                                     <img
-                                        src={profileImageUrl.startsWith('http') ? profileImageUrl : `http://localhost:5001${profileImageUrl}`}
+                                        src={profileImageUrl.startsWith('http') ? profileImageUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || ''}${profileImageUrl}`}
                                         className="w-full h-full object-cover"
                                         alt="Profile"
                                     />
@@ -211,7 +211,7 @@ export default function BioEditor() {
                             <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-200 dark:border-zinc-700">
                                 {backgroundImageUrl ? (
                                     <img
-                                        src={backgroundImageUrl.startsWith('http') ? backgroundImageUrl : `http://localhost:5001${backgroundImageUrl}`}
+                                        src={backgroundImageUrl.startsWith('http') ? backgroundImageUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || ''}${backgroundImageUrl}`}
                                         className="w-full h-full object-cover"
                                         alt="Background"
                                     />

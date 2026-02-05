@@ -50,7 +50,14 @@ export default function BioPageRender() {
         return <Globe className="w-5 h-5" />;
     };
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+    const getApiBase = () => {
+        if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL.replace('/api', '');
+        if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+            return window.location.origin;
+        }
+        return 'http://localhost:5001';
+    };
+    const apiBase = getApiBase();
     const profileImg = page.profileImageUrl ? (page.profileImageUrl.startsWith('http') ? page.profileImageUrl : `${apiBase}${page.profileImageUrl}`) : null;
     const backgroundImg = page.backgroundImageUrl ? (page.backgroundImageUrl.startsWith('http') ? page.backgroundImageUrl : `${apiBase}${page.backgroundImageUrl}`) : null;
 
