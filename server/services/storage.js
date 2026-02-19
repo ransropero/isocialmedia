@@ -1,4 +1,5 @@
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { Upload } = require('@aws-sdk/lib-storage');
 const fs = require('fs');
 
 const s3Client = new S3Client({
@@ -8,41 +9,43 @@ const s3Client = new S3Client({
         accessKeyId: process.env.STORAGE_ACCESS_KEY,
         secretAccessKey: process.env.STORAGE_SECRET_KEY,
     },
-    forcePathStyle: true // Mandatory for Supabase/S3 compatible
+    forcePathStyle: true, // Specific for Supabase/S3-compatible storage
 });
 
 exports.uploadToSupabase = async (file) => {
     try {
-        const fileContent = fs.readFileSync(file.path);
         const fileName = `${Date.now()}-${file.originalname}`;
-        const bucket = process.env.STORAGE_BUCKET || 'iSocial';
+        const upload = new Upload({
+            client: s3Client,
+            params: {
+                Bucket: process.env.STORAGE_BUCKET || 'iSocial',
+                Key: fileName,
+                Body: fs.createReadStream(file.path),
+                ContentType: file.mimetype,
+                ACL: 'public-read',
+            },
+        });
 
-        const params = {
-            Bucket: bucket,
-            Key: fileName,
-            Body: fileContent,
-            ContentType: file.mimetype,
-            // ACL: 'public-read' // Not always supported/needed in Supabase
-        };
+        await upload.done();
 
-        await s3Client.send(new PutObjectCommand(params));
-
-        // Generate Public URL (Supabase pattern)
-        // Format: https://[project-id].storage.supabase.co/storage/v1/object/public/[bucket]/[filename]
-        const publicUrl = `${process.env.STORAGE_ENDPOINT}/object/public/${bucket}/${fileName}`;
+        // Construct public URL
+        // Supabase S3 public URL format: [endpoint]/[bucket]/[key]
+        // But usually it's served via the storage API: [url]/storage/v1/object/public/[bucket]/[key]
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://crqcnqzlhhrlmwjscdrq.supabase.co';
+        const bucketName = process.env.STORAGE_BUCKET || 'iSocial';
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${fileName}`;
 
         // Remove local file
-        fs.unlinkSync(file.path);
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
 
         return publicUrl;
     } catch (error) {
-        console.error('Supabase Storage Upload Error:', error);
+        console.error('S3 Upload Error:', error);
         throw error;
     }
 };
 
 exports.getS3Object = async (url) => {
-    // Helper to fetch object if needed for Instagram publishing
     const axios = require('axios');
     const response = await axios.get(url, { responseType: 'arraybuffer' });
     return Buffer.from(response.data);

@@ -11,9 +11,9 @@ export default function LoginPage() {
         // Redirect if already logged in
         const token = localStorage.getItem('token');
         if (token) {
-            router.push('/');
+            router.push('/dashboard');
         }
     }, [router]);
 
-    return <Login onLogin={() => router.push('/')} />;
+    return <Login onLogin={() => router.push('/dashboard')} />;
 }

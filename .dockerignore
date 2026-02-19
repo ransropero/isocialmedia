@@ -6,3 +6,7 @@ server/uploads
 .git
 .DS_Store
 *.md
+server/firebase-service-account.json
+.env
+*.env
+*.log

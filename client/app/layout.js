@@ -16,13 +16,16 @@ export const metadata = {
   description: "Schedule your Instagram posts easily",
 };
 
+import CommercialHeader from "@/components/CommercialHeader";
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-200`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground transition-colors duration-300 selection:bg-indigo-500/30`}
       >
-        <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="min-h-screen flex flex-col">
+          <CommercialHeader />
           {children}
         </div>
       </body>

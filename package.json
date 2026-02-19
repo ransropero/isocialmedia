@@ -2,14 +2,15 @@
     "name": "instagram-scheduler-root",
     "version": "1.0.0",
     "scripts": {
-        "start": "node server/index.js",
+        "start": "concurrently \"npm run server\" \"npm run client\"",
         "dev": "concurrently \"npm run server\" \"npm run client:dev\"",
         "build": "cd client && npm install && npm run build",
         "server": "cd server && npm start",
+        "client": "cd client && npm start",
         "client:dev": "cd client && npm run dev",
         "postinstall": "npm run build"
     },
-    "devDependencies": {
+    "dependencies": {
         "concurrently": "^8.0.0"
     }
 }

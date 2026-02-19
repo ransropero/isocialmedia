@@ -7,3 +7,5 @@ build
 uploads/
 .vscode
 coverage
+server/firebase-service-account.json
+*.env.*

@@ -1,21 +1,9 @@
 import axios from 'axios';
 
-const getBaseURL = () => {
-    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-    if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        if (hostname !== 'localhost') {
-            // Se estiver em produção e sem variável de ambiente, assume-se que o backend 
-            // está disponível no mesmo host sob o path /api (via proxy) ou na porta 5001.
-            // Para Cloud Run com container único, geralmente precisa de uma URL completa ou proxy.
-            return window.location.origin + '/api';
-        }
-    }
-    return 'http://localhost:5001/api';
-};
-
+// O baseURL agora é relativo para usar o proxy do Next.js (configurado em next.config.mjs)
+// Isso permite que o app funcione em qualquer URL de deploy sem configurações fixas.
 const api = axios.create({
-    baseURL: getBaseURL(),
+    baseURL: '/api',
 });
 
 // Auth Interceptor
@@ -33,8 +21,13 @@ export const login = async (email, password) => {
     return response.data;
 };
 
-export const register = async (email, password) => {
-    const response = await api.post('/auth/register', { email, password });
+export const register = async (email, password, fullName, birthDate, cpf, optIn) => {
+    const response = await api.post('/auth/register', { email, password, fullName, birthDate, cpf, optIn });
+    return response.data;
+};
+
+export const getCurrentUser = async () => {
+    const response = await api.get('/auth/me');
     return response.data;
 };
 
@@ -45,6 +38,11 @@ export const getUsers = async () => {
 
 export const updateUserAccess = async (id, hasAccess) => {
     const response = await api.put(`/auth/users/${id}/access`, { hasAccess });
+    return response.data;
+};
+
+export const updateUserPlan = async (id, plan) => {
+    const response = await api.put(`/auth/users/${id}/plan`, { plan });
     return response.data;
 };
 
@@ -72,5 +70,8 @@ export const deleteBioPage = (id) => api.delete(`/bio/${id}`);
 export const uploadBioImage = (formData) => api.post('/bio/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
 });
+export const trackBioClick = (id, linkIndex) => api.post(`/bio/${id}/click`, { linkIndex });
+export const verifyLinkPassword = (id, linkIndex, password) => api.post(`/bio/${id}/verify-password`, { linkIndex, password });
+export const getBioAnalytics = (id, range = 'month') => api.get(`/bio/${id}/analytics?range=${range}`);
 
 export default api;

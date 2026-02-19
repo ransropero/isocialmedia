@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { db } = require('../config/firebase');
 
 const authMiddleware = async (req, res, next) => {
     try {
@@ -14,17 +14,18 @@ const authMiddleware = async (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-        const user = await User.findByPk(decoded.id);
+        const userDoc = await db.collection('users').doc(decoded.id).get();
 
-        if (!user) {
+        if (!userDoc.exists) {
             return res.status(401).json({ message: 'User not found' });
         }
 
+        const user = userDoc.data();
         if (!user.hasAccess) {
             return res.status(403).json({ message: 'Access denied' });
         }
 
-        req.user = user;
+        req.user = { id: userDoc.id, ...user };
         next();
     } catch (error) {
         console.error(error);
@@ -33,3 +34,4 @@ const authMiddleware = async (req, res, next) => {
 };
 
 module.exports = authMiddleware;
+

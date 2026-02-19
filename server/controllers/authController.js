@@ -1,5 +1,6 @@
-const User = require('../models/User');
+const { db } = require('../config/firebase');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret', {
@@ -8,32 +9,50 @@ const generateToken = (id) => {
 };
 
 exports.register = async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, fullName, birthDate, cpf, optIn } = req.body;
 
     try {
-        const userExists = await User.findOne({ where: { email } });
+        const usersRef = db.collection('users');
+        const snapshot = await usersRef.where('email', '==', email).get();
 
-        if (userExists) {
+        if (!snapshot.empty) {
             return res.status(400).json({ message: 'User already exists' });
         }
 
-        const isFirstUser = (await User.count()) === 0;
+        const userCountSnapshot = await db.collection('metadata').doc('stats').get();
+        const isFirstUser = !userCountSnapshot.exists || (userCountSnapshot.data().userCount || 0) === 0;
 
-        const user = await User.create({
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const userDoc = await usersRef.add({
             email,
-            password,
-            hasAccess: isFirstUser,
-            isAdmin: isFirstUser
+            password: hashedPassword,
+            fullName: fullName || '',
+            birthDate: birthDate || null,
+            cpf: cpf || '',
+            optIn: !!optIn,
+            hasAccess: true, // Automatically grant access
+            isAdmin: isFirstUser,
+            plan: 'start', // Default plan is now 'start'
+            createdAt: new Date()
         });
+
+        // Increment user count
+        await db.collection('metadata').doc('stats').set({
+            userCount: (userCountSnapshot.exists ? userCountSnapshot.data().userCount || 0 : 0) + 1
+        }, { merge: true });
 
         res.status(201).json({
-            id: user.id,
-            email: user.email,
-            token: generateToken(user.id)
+            id: userDoc.id,
+            email,
+            token: generateToken(userDoc.id)
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Register Error:', error);
+        res.status(500).json({
+            message: 'Server error during registration',
+            error: error.message
+        });
     }
 };
 
@@ -41,34 +60,57 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        const user = await User.findOne({ where: { email } });
+        const usersRef = db.collection('users');
+        const snapshot = await usersRef.where('email', '==', email).get();
 
-        if (user && (await user.validatePassword(password))) {
-            if (!user.hasAccess) {
+        if (snapshot.empty) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        const userDoc = snapshot.docs[0];
+        const userData = userDoc.data();
+
+        const isPasswordValid = await bcrypt.compare(password, userData.password);
+
+        if (isPasswordValid) {
+            if (!userData.hasAccess) {
                 return res.status(403).json({
                     message: 'Access Denied. Your account is pending approval.'
                 });
             }
 
             res.json({
-                id: user.id,
-                email: user.email,
-                isAdmin: user.isAdmin,
-                token: generateToken(user.id)
+                id: userDoc.id,
+                email: userData.email,
+                isAdmin: userData.isAdmin,
+                plan: userData.plan,
+                token: generateToken(userDoc.id)
             });
         } else {
             res.status(401).json({ message: 'Invalid email or password' });
         }
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Login Error:', error);
+        res.status(500).json({
+            message: 'Server error during login',
+            error: error.message
+        });
     }
 };
 
 exports.getUsers = async (req, res) => {
     try {
-        const users = await User.findAll({
-            attributes: ['id', 'email', 'hasAccess', 'isAdmin', 'createdAt']
+        const snapshot = await db.collection('users').get();
+        const users = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                email: data.email,
+                hasAccess: data.hasAccess,
+                isAdmin: data.isAdmin,
+                plan: data.plan,
+                createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : null
+            };
         });
         res.json(users);
     } catch (error) {
@@ -82,23 +124,35 @@ exports.updateUserAccess = async (req, res) => {
         const { id } = req.params;
         const { hasAccess } = req.body;
 
-        const user = await User.findByPk(id);
-
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        if (user.id === req.user.id) {
+        if (id === req.user.id) {
             return res.status(400).json({ message: 'Cannot modify your own access' });
         }
 
-        user.hasAccess = hasAccess;
-        await user.save();
+        await db.collection('users').doc(id).update({ hasAccess });
 
-        res.json({ message: `User access ${hasAccess ? 'granted' : 'revoked'}`, user });
+        res.json({ message: `User access ${hasAccess ? 'granted' : 'revoked'}` });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+exports.updateUserPlan = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { plan } = req.body;
+
+        if (!['start', 'growth', 'pro'].includes(plan)) {
+            return res.status(400).json({ message: 'Invalid plan type' });
+        }
+
+        await db.collection('users').doc(id).update({ plan });
+
+        res.json({ message: `User plan updated to ${plan}` });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 

@@ -57,60 +57,72 @@ export default function PostList({ refreshTrigger }) {
     };
 
     return (
-        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">
-            <h2 className="text-xl font-semibold mb-6 text-zinc-900 dark:text-zinc-100">Scheduled Posts</h2>
-            <div className="space-y-4">
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Próximos Posts</h2>
+                <div className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs font-medium text-zinc-500">
+                    {posts.length} agendados
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {posts.length === 0 ? (
-                    <p className="text-zinc-500 text-center py-8">No posts scheduled.</p>
+                    <div className="col-span-full py-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
+                        <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+                            <Clock className="w-6 h-6 text-zinc-400" />
+                        </div>
+                        <p className="text-zinc-500 font-medium">Nenhum post agendado.</p>
+                        <p className="text-sm text-zinc-400 mt-1">Use o criador acima para começar.</p>
+                    </div>
                 ) : (
                     posts.map((post) => (
-                        <div key={post.id} className="group relative flex gap-4 p-4 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
-                            <div className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-zinc-200 dark:bg-zinc-800">
+                        <div key={post.id} className="group relative bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
+                            {/* Image Header */}
+                            <div className="relative aspect-video w-full overflow-hidden bg-zinc-100 dark:bg-zinc-800">
                                 <img
                                     src={post.imageUrl}
-                                    alt="Post"
-                                    className="w-full h-full object-cover"
+                                    alt="Post Content"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                 />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex gap-2">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}>
-                                            {getStatusIcon(post.status)}
-                                            {post.status}
-                                        </span>
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400`}>
-                                            {post.type || 'FEED'}
-                                        </span>
-                                        {post.recurrenceTotal && (
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400`}>
-                                                Repeat: {post.recurrenceCurrent}/{post.recurrenceTotal}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="text-xs text-zinc-500">
-                                        {format(new Date(post.scheduledTime), 'PPp')}
-                                    </span>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                                <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-200">
+                                    <button onClick={() => setEditingPost(post)} className="p-2 bg-white/90 backdrop-blur text-zinc-700 rounded-lg hover:text-blue-600 shadow-sm">
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button onClick={() => handleDelete(post.id)} className="p-2 bg-white/90 backdrop-blur text-zinc-700 rounded-lg hover:text-red-500 shadow-sm">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
-                                <p className="text-sm text-zinc-600 dark:text-zinc-300 line-clamp-2">{post.caption}</p>
                             </div>
 
-                            {/* Actions - visible on hover for desktop, always allow access via layout if needed, but for now absolute positioning on right */}
-                            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => setEditingPost(post)}
-                                    className="p-1.5 text-zinc-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                    title="Edit Post"
-                                >
-                                    <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(post.id)}
-                                    className="p-1.5 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                    title="Delete Post"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                            {/* Content Body */}
+                            <div className="p-4 flex-1 flex flex-col">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${getStatusColor(post.status)}`}>
+                                        {getStatusIcon(post.status)}
+                                        {post.status}
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">
+                                        {post.type || 'FEED'}
+                                    </span>
+                                </div>
+
+                                <p className="text-sm text-zinc-600 dark:text-zinc-300 line-clamp-3 mb-4 flex-1 font-medium leading-relaxed">
+                                    {post.caption || <span className="italic text-zinc-400">Sem legenda...</span>}
+                                </p>
+
+                                <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+                                    <div className="flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        {format(new Date(post.scheduledTime), 'dd MMM, HH:mm')}
+                                    </div>
+                                    {post.recurrenceTotal && (
+                                        <span className="text-indigo-500 font-medium bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded">
+                                            {post.recurrenceCurrent}/{post.recurrenceTotal}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))

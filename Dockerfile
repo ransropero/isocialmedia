@@ -3,9 +3,6 @@ FROM node:20-alpine AS client-builder
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm install --ignore-scripts
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
 COPY client/ ./
 RUN npm run build
 
@@ -31,5 +28,7 @@ RUN cd client && npm install --omit=dev --ignore-scripts
 EXPOSE 3000
 EXPOSE 5001
 
-# Command to run both (Next.js on 3000, Express on 5001)
-CMD ["npx", "concurrently", "\"cd server && npm start\"", "\"cd client && npm start\""]
+ENV BACKEND_PORT=5001
+
+# Command to run both (Next.js on 3000, Express on 5001) using root package.json
+CMD ["npm", "start"]

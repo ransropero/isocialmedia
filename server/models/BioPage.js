@@ -41,8 +41,20 @@ const BioPage = sequelize.define('BioPage', {
         defaultValue: '#ffffff'
     },
     links: {
-        type: DataTypes.JSON, // Array of { title, url, icon }
+        type: DataTypes.JSON, // Array of { title, url, icon, scheduleStart, scheduleEnd }
         defaultValue: []
+    },
+    fontFamily: {
+        type: DataTypes.STRING,
+        defaultValue: 'Inter'
+    },
+    buttonColor: {
+        type: DataTypes.STRING,
+        defaultValue: '#6366f1' // Indigo-500 default
+    },
+    showLogo: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     },
     userId: {
         type: DataTypes.INTEGER,

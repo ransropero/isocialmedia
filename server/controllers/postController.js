@@ -1,4 +1,4 @@
-const Post = require('../models/Post');
+const { db, admin } = require('../config/firebase');
 const { uploadToSupabase } = require('../services/storage');
 
 exports.createPost = async (req, res) => {
@@ -15,45 +15,60 @@ exports.createPost = async (req, res) => {
         let recurrenceCurrent = 1;
 
         if (recurrenceInterval && recurrenceTotal) {
-            const { v4: uuidv4 } = require('uuid');
-            // Or use crypto if uuid not available, but let's assume uuid is standard or use crypto
-            // checking package.json next step will confirm, but I can use crypto.randomUUID if node >= 14.17
-            // safer to use crypto if I don't see uuid in package.json
             recurrenceGroupId = require('crypto').randomUUID();
         }
 
-        const post = await Post.create({
+        const postData = {
             caption,
             imageUrl,
-            scheduledTime: new Date(scheduledTime),
+            scheduledTime: admin.firestore.Timestamp.fromDate(new Date(scheduledTime)),
             status: 'SCHEDULED',
-            accountId: accountId ? parseInt(accountId) : null,
+            accountId: accountId || null,
             userId: req.user.id,
             type: type || 'FEED',
             recurrenceGroupId,
             recurrenceInterval: recurrenceInterval ? parseInt(recurrenceInterval) : null,
             recurrenceTotal: recurrenceTotal ? parseInt(recurrenceTotal) : null,
-            recurrenceCurrent
-        });
+            recurrenceCurrent,
+            createdAt: new Date()
+        };
 
-        res.status(201).json(post);
+        const postDoc = await db.collection('posts').add(postData);
+
+        res.status(201).json({
+            id: postDoc.id,
+            ...postData,
+            scheduledTime: new Date(scheduledTime)
+        });
     } catch (error) {
         console.error('Error creating post:', error);
-        res.status(500).json({ error: 'Server error' });
+        if (error.Code || error.name === 'AxiosError') {
+            console.error('Detailed Upload/API Error:', error.message);
+        }
+        res.status(500).json({
+            error: 'Server error',
+            message: error.message
+        });
     }
 };
 
 exports.getPosts = async (req, res) => {
     try {
-        let where = {};
+        let query = db.collection('posts');
         if (!req.user.isAdmin) {
-            where = { userId: req.user.id };
+            query = query.where('userId', '==', req.user.id);
         }
-        const posts = await Post.findAll({
-            where,
-            order: [['scheduledTime', 'ASC']],
-            include: [{ model: Post.sequelize.models.Account }] // Optional: Include account details
+
+        const snapshot = await query.orderBy('scheduledTime', 'asc').get();
+        const posts = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                scheduledTime: data.scheduledTime ? (data.scheduledTime.toDate ? data.scheduledTime.toDate() : data.scheduledTime) : null
+            };
         });
+
         res.json(posts);
     } catch (error) {
         console.error('Error fetching posts:', error);
@@ -64,17 +79,18 @@ exports.getPosts = async (req, res) => {
 exports.deletePost = async (req, res) => {
     try {
         const { id } = req.params;
-        const post = await Post.findByPk(id);
+        const postDoc = await db.collection('posts').doc(id).get();
 
-        if (!post) {
+        if (!postDoc.exists) {
             return res.status(404).json({ error: 'Post not found' });
         }
 
-        if (post.userId !== req.user.id && !req.user.isAdmin) {
+        const postData = postDoc.data();
+        if (postData.userId !== req.user.id && !req.user.isAdmin) {
             return res.status(403).json({ error: 'Not authorized' });
         }
 
-        await post.destroy();
+        await db.collection('posts').doc(id).delete();
         res.json({ message: 'Post deleted successfully' });
     } catch (error) {
         console.error('Error deleting post:', error);
@@ -87,25 +103,29 @@ exports.updatePost = async (req, res) => {
         const { id } = req.params;
         const { caption, scheduledTime } = req.body;
 
-        const post = await Post.findByPk(id);
+        const postRef = db.collection('posts').doc(id);
+        const postDoc = await postRef.get();
 
-        if (!post) {
+        if (!postDoc.exists) {
             return res.status(404).json({ error: 'Post not found' });
         }
 
-        if (post.userId !== req.user.id && !req.user.isAdmin) {
+        const postData = postDoc.data();
+        if (postData.userId !== req.user.id && !req.user.isAdmin) {
             return res.status(403).json({ error: 'Not authorized' });
         }
 
-        post.caption = caption || post.caption;
+        const updates = {};
+        if (caption !== undefined) updates.caption = caption;
         if (scheduledTime) {
-            post.scheduledTime = new Date(scheduledTime);
+            updates.scheduledTime = admin.firestore.Timestamp.fromDate(new Date(scheduledTime));
         }
 
-        await post.save();
-        res.json(post);
+        await postRef.update(updates);
+        res.json({ id, ...postData, ...updates });
     } catch (error) {
         console.error('Error updating post:', error);
         res.status(500).json({ error: 'Server error' });
     }
 };
+
