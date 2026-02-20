@@ -32,7 +32,7 @@ export default function PlansModal({ isOpen, onClose }) {
                 '5 Bio Pages Personalizáveis',
                 'Até 20 Links por Página',
                 'Tudo do Plano Growth',
-                'Remover Logo iSocialMidia',
+                'Remover Logo iSocialMedia',
                 'Estatísticas Avançadas',
                 'Gestão Profissional'
             ],

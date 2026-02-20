@@ -568,7 +568,7 @@ export default function BioEditor({ onShowPlans }) {
                                         <div className="space-y-2">
                                             <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Slug (URL do Link)</label>
                                             <div className="flex items-center">
-                                                <span className="px-3 py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-r-0 border-zinc-200 dark:border-zinc-700 rounded-l-xl text-sm text-zinc-500 font-mono">isocialmidia.com/</span>
+                                                <span className="px-3 py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-r-0 border-zinc-200 dark:border-zinc-700 rounded-l-xl text-sm text-zinc-500 font-mono">isocialmedia.com/</span>
                                                 <input
                                                     type="text"
                                                     value={slug}
@@ -696,7 +696,7 @@ export default function BioEditor({ onShowPlans }) {
                                             </div>
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Exibir Logo iSocialMidia</label>
+                                            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Exibir Logo iSocialMedia</label>
                                             <div className="flex items-center gap-2 h-[44px]">
                                                 <button
                                                     onClick={() => userPlan === 'pro' && setShowLogo(!showLogo)}
@@ -1062,7 +1062,7 @@ export default function BioEditor({ onShowPlans }) {
 
                             <div className="flex flex-col items-center text-center">
                                 <h2 className="text-xl font-bold mb-1 text-zinc-900 dark:text-zinc-50">QRCode da Página</h2>
-                                <p className="text-zinc-400 text-xs mb-8">isocialmidia.com.br/{slug}</p>
+                                <p className="text-zinc-400 text-xs mb-8">isocialmedia.com.br/{slug}</p>
 
                                 <div className="p-6 bg-white rounded-3xl shadow-xl shadow-zinc-200/50 mb-8">
                                     <QRCodeSVG

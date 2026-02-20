@@ -39,23 +39,29 @@ export default function CommercialHeader() {
             <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2 group">
                     <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-white shadow-sm group-hover:scale-110 transition-transform p-1">
-                        <img src="/logo.png" alt="iSocialMidia Logo" className="w-full h-full object-contain" />
+                        <img src="/logo.png" alt="iSocialMedia Logo" className="w-full h-full object-contain" />
                     </div>
                     <span className={`text-xl font-black tracking-tighter ${isLoginPage ? 'text-white' : ''}`}>
                         iSocialM
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">i</span>
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">e</span>
                         di
                         <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">a</span>
                     </span>
                 </Link>
 
-                <div className="hidden md:flex items-center gap-8">
-                    <Link href="/#features" className={`text-sm font-bold transition-colors ${linkClasses}`}>Funcionalidades</Link>
-                    <Link href="/pricing" className={`text-sm font-bold transition-colors ${linkClasses}`}>Planos</Link>
-                    <Link href="/login" className={`text-sm font-bold transition-colors ${linkClasses}`}>Entrar</Link>
+                <div className="flex items-center gap-4 md:gap-8">
+                    {/* Desktop Only Links */}
+                    <div className="hidden lg:flex items-center gap-8">
+                        <Link href="/#features" className={`text-sm font-bold transition-colors ${linkClasses}`}>Funcionalidades</Link>
+                        <Link href="/pricing" className={`text-sm font-bold transition-colors ${linkClasses}`}>Planos</Link>
+                    </div>
+
+                    {/* Shared Links */}
+                    <Link href="/login" className={`text-sm font-black transition-colors ${linkClasses}`}>Entrar</Link>
+
                     <Link
                         href="/login?tab=register"
-                        className={`${isLoginPage ? 'bg-white text-zinc-900' : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'} px-6 py-2.5 rounded-full text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/10 dark:shadow-white/5`}
+                        className={`hidden sm:block ${isLoginPage ? 'bg-white text-zinc-900' : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'} px-6 py-2.5 rounded-full text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/10 dark:shadow-white/5`}
                     >
                         Começar Grátis
                     </Link>

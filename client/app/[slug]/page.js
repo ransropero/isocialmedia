@@ -21,7 +21,7 @@ export async function generateMetadata({ params }) {
 
     if (!page) {
         return {
-            title: 'Página não encontrada | iSocialMidia',
+            title: 'Página não encontrada | iSocialMedia',
         };
     }
 
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }) {
         : null;
 
     return {
-        title: `${page.title || `@${slug}`} | iSocialMidia`,
+        title: `${page.title || `@${slug}`} | iSocialMedia`,
         description: page.description || 'Confira meus links e redes sociais.',
         icons: profileImg ? {
             icon: profileImg,

@@ -81,7 +81,7 @@ export default function LandingPage() {
             <div className="overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-700 aspect-[16/10] md:aspect-[16/9] bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center relative group">
               <img
                 src="/assets/dashboard-preview.jpg"
-                alt="iSocialMidia Dashboard Preview"
+                alt="iSocialMedia Dashboard Preview"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
@@ -176,13 +176,13 @@ export default function LandingPage() {
             </div>
             <span className="text-lg font-black tracking-tighter">
               iSocialM
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">i</span>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">e</span>
               di
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">a</span>
             </span>
           </div>
           <div className="flex gap-10 text-xs font-black uppercase tracking-widest text-zinc-400">
-            <a href="https://www.instagram.com/isocialmidia/" target="_blank" rel="noopener noreferrer" className="hover:text-pink-500 transition-colors flex items-center gap-1">
+            <a href="https://www.instagram.com/isocial.media/" target="_blank" rel="noopener noreferrer" className="hover:text-pink-500 transition-colors flex items-center gap-1">
               <Instagram className="w-3 h-3" /> Instagram
             </a>
             <a href="#" className="hover:text-zinc-900 dark:hover:text-white transition-colors">Termos</a>
@@ -190,7 +190,7 @@ export default function LandingPage() {
             <a href="#" className="hover:text-zinc-900 dark:hover:text-white transition-colors">Suporte</a>
           </div>
           <p className="text-zinc-400 text-sm font-medium">
-            © 2026 iSocialMidia. Todos os direitos reservados.
+            © 2026 iSocialMedia. Todos os direitos reservados.
           </p>
         </div>
       </footer>

@@ -24,7 +24,7 @@ export default function Header({ user, onLogout, onShowPlans }) {
         <header className="sticky top-4 z-50 mb-8 rounded-2xl glass-panel px-6 py-4 flex items-center justify-between shadow-sm animate-fade-in-up">
             <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-white shadow-sm p-1">
-                    <img src="/logo.png" alt="iSocialMidia Logo" className="w-full h-full object-contain" />
+                    <img src="/logo.png" alt="iSocialMedia Logo" className="w-full h-full object-contain" />
                 </div>
                 <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
                     iSocialM

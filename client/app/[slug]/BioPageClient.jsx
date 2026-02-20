@@ -328,7 +328,7 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
 
                 {page.showLogo !== false && (
                     <a
-                        href="https://isocialmidia.com.br"
+                        href="https://isocialmedia.com.br"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-20 py-4 opacity-40 hover:opacity-100 transition-opacity flex flex-col items-center space-y-1 animate-in fade-in duration-1000 delay-500 cursor-pointer"

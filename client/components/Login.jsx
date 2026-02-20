@@ -231,7 +231,7 @@ const Login = ({ onLogin }) => {
 
                 {/* Footer Copyright */}
                 <div className="absolute bottom-6 text-xs text-zinc-400">
-                    &copy; 2026 iSocialMidia. Todos os direitos reservados.
+                    &copy; 2026 iSocialMedia. Todos os direitos reservados.
                 </div>
             </div>
         </div>

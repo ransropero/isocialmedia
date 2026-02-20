@@ -53,7 +53,7 @@ export default function PricingPage() {
                 '5 Bio Pages personalizáveis',
                 'Até 20 links por página',
                 'Tudo do plano Growth',
-                'Remover logo iSocialMidia',
+                'Remover logo iSocialMedia',
                 'Estatísticas avançadas',
                 'Gestão profissional'
             ],
@@ -145,7 +145,7 @@ export default function PricingPage() {
                         </p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                             <a
-                                href="https://api.whatsapp.com/send/?phone=5511974501991&text=Olá! Preciso de uma recomendação. Qual plano do iSocialMidia faz mais sentido para o meu perfil?&type=phone_number&app_absent=0"
+                                href="https://api.whatsapp.com/send/?phone=5511974501991&text=Olá! Preciso de uma recomendação. Qual plano do iSocialMedia faz mais sentido para o meu perfil?&type=phone_number&app_absent=0"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-block bg-white text-black px-12 py-5 rounded-2xl font-black hover:scale-105 transition-transform shadow-2xl"
