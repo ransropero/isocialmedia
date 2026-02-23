@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Instagram Scheduler",
-  description: "Schedule your Instagram posts easily",
+  title: "iSocial Media",
+  description: "Sua bio no mais alto nível profissional",
 };
 
 import CommercialHeader from "@/components/CommercialHeader";

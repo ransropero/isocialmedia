@@ -67,7 +67,7 @@ exports.getMyBioPages = async (req, res) => {
 
 exports.createBioPage = async (req, res) => {
     try {
-        const { slug, title, description, backgroundColor, textColor, buttonColor, fontFamily, links, profileImageUrl, backgroundImageUrl, showLogo } = req.body;
+        const { slug, title, description, backgroundColor, textColor, buttonColor, descriptionColor, buttonsTransparent, fontFamily, links, profileImageUrl, backgroundImageUrl, backgroundImages, showLogo } = req.body;
 
         // Check plan limits
         const user = req.user;
@@ -101,6 +101,9 @@ exports.createBioPage = async (req, res) => {
             profileImageUrl,
             backgroundImageUrl,
             showLogo: user.plan === 'pro' ? showLogo : true,
+            descriptionColor: (user.plan === 'pro' || user.plan === 'growth') ? (descriptionColor || textColor || '#ffffff') : (textColor || '#ffffff'),
+            buttonsTransparent: (user.plan === 'pro' || user.plan === 'growth') ? (buttonsTransparent !== undefined ? buttonsTransparent : false) : false,
+            backgroundImages: (user.plan === 'pro' || user.plan === 'growth') ? (backgroundImages || []).slice(0, 5) : [],
             socials: req.body.socials || {}, // New socials object
             links: (links || []).map(link => {
                 // Enforce Pro for password and age restricted links
@@ -148,6 +151,9 @@ exports.updateBioPage = async (req, res) => {
             textColor: body.textColor || currentData.textColor,
             buttonColor: body.buttonColor || currentData.buttonColor,
             fontFamily: body.fontFamily || currentData.fontFamily,
+            descriptionColor: (req.user.plan === 'pro' || req.user.plan === 'growth') ? (body.descriptionColor || currentData.descriptionColor) : currentData.descriptionColor,
+            buttonsTransparent: (req.user.plan === 'pro' || req.user.plan === 'growth') ? (body.buttonsTransparent !== undefined ? body.buttonsTransparent : currentData.buttonsTransparent) : false,
+            backgroundImages: (req.user.plan === 'pro' || req.user.plan === 'growth') ? (body.backgroundImages !== undefined ? body.backgroundImages.slice(0, 5) : currentData.backgroundImages) : [],
             profileImageUrl: body.profileImageUrl !== undefined ? body.profileImageUrl : currentData.profileImageUrl,
             backgroundImageUrl: body.backgroundImageUrl !== undefined ? body.backgroundImageUrl : currentData.backgroundImageUrl,
             links: body.links !== undefined ? body.links.map(link => {
@@ -196,7 +202,8 @@ exports.uploadImage = async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ message: 'No file uploaded' });
         }
-        const publicUrl = await uploadToSupabase(req.file);
+        const { slug } = req.body;
+        const publicUrl = await uploadToSupabase(req.file, slug);
         res.json({ url: publicUrl });
     } catch (error) {
         console.error('Error uploading bio image:', error);

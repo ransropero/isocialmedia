@@ -7,7 +7,7 @@ import {
     Save, Link as LinkIcon, Smartphone, Palette, Layout,
     Type, CalendarClock, ChevronDown, Check, AlertCircle, Layers,
     Instagram, Facebook, Twitter, Youtube, Mail, MessageCircle, Linkedin, Play,
-    QrCode, Download, X, GripVertical
+    QrCode, Download, X, GripVertical, MessageSquare, Globe
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -48,11 +48,8 @@ function SortableItem({ id, children }) {
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="relative group/sortable">
-            <div {...attributes} {...listeners} className="absolute left-1 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing text-zinc-300 hover:text-indigo-400 z-10 opacity-0 group-hover/sortable:opacity-100 transition-opacity">
-                <GripVertical className="w-4 h-4" />
-            </div>
-            {children}
+        <div ref={setNodeRef} style={style} className="relative">
+            {typeof children === 'function' ? children({ attributes, listeners }) : children}
         </div>
     );
 }
@@ -65,6 +62,7 @@ export default function BioEditor({ onShowPlans }) {
     const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [successTimeout, setSuccessTimeout] = useState(null);
     const [showNewPageForm, setShowNewPageForm] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
@@ -86,10 +84,13 @@ export default function BioEditor({ onShowPlans }) {
     });
     const [backgroundColor, setBackgroundColor] = useState('#000000');
     const [textColor, setTextColor] = useState('#ffffff');
+    const [descriptionColor, setDescriptionColor] = useState('#ffffff');
     const [buttonColor, setButtonColor] = useState('#6366f1');
+    const [buttonsTransparent, setButtonsTransparent] = useState(false);
     const [fontFamily, setFontFamily] = useState('Inter');
     const [profileImageUrl, setProfileImageUrl] = useState('');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
+    const [backgroundImages, setBackgroundImages] = useState([]);
     const [showLogo, setShowLogo] = useState(true);
     const [userPlan, setUserPlan] = useState('trial');
 
@@ -121,6 +122,19 @@ export default function BioEditor({ onShowPlans }) {
             }
         }
     }, []);
+
+    useEffect(() => {
+        if (success) {
+            if (successTimeout) clearTimeout(successTimeout);
+            const timeout = setTimeout(() => {
+                setSuccess('');
+            }, 3000);
+            setSuccessTimeout(timeout);
+        }
+        return () => {
+            if (successTimeout) clearTimeout(successTimeout);
+        };
+    }, [success]);
 
     const fetchBioPages = async (selectId = null) => {
         try {
@@ -164,10 +178,13 @@ export default function BioEditor({ onShowPlans }) {
         });
         setBackgroundColor(page.backgroundColor || '#000000');
         setTextColor(page.textColor || '#ffffff');
+        setDescriptionColor(page.descriptionColor || page.textColor || '#ffffff');
         setButtonColor(page.buttonColor || '#6366f1');
+        setButtonsTransparent(page.buttonsTransparent || false);
         setFontFamily(page.fontFamily || 'Inter');
         setProfileImageUrl(page.profileImageUrl || '');
         setBackgroundImageUrl(page.backgroundImageUrl || '');
+        setBackgroundImages(page.backgroundImages || []);
         setShowLogo(page.showLogo !== undefined ? page.showLogo : true);
         setShowNewPageForm(false);
     };
@@ -189,10 +206,13 @@ export default function BioEditor({ onShowPlans }) {
         });
         setBackgroundColor('#000000');
         setTextColor('#ffffff');
+        setDescriptionColor('#ffffff');
         setButtonColor('#6366f1');
+        setButtonsTransparent(false);
         setFontFamily('Inter');
         setProfileImageUrl('');
         setBackgroundImageUrl('');
+        setBackgroundImages([]);
         setShowLogo(true);
     };
 
@@ -224,12 +244,12 @@ export default function BioEditor({ onShowPlans }) {
             onShowPlans();
             return;
         }
-        setLinks([...links, { title: '', url: '', scheduleStart: '', scheduleEnd: '', password: '', requireAge: false }]);
+        setLinks([...links, { title: '', url: '', type: 'url', messageTitle: '', messageBody: '', phone: '', whatsappMessage: '', address: '', scheduleStart: '', scheduleEnd: '', password: '', requireAge: false }]);
     };
 
     const handleRemoveLink = (index) => {
         const newLinks = links.filter((_, i) => i !== index);
-        setLinks(newLinks.length > 0 ? newLinks : [{ title: '', url: '', scheduleStart: '', scheduleEnd: '', password: '', requireAge: false }]);
+        setLinks(newLinks.length > 0 ? newLinks : [{ title: '', url: '', type: 'url', messageTitle: '', messageBody: '', phone: '', whatsappMessage: '', address: '', scheduleStart: '', scheduleEnd: '', password: '', requireAge: false }]);
     };
 
     const handleLinkChange = (index, field, value) => {
@@ -244,12 +264,20 @@ export default function BioEditor({ onShowPlans }) {
 
         const formData = new FormData();
         formData.append('image', file);
+        formData.append('slug', slug);
 
         try {
             setSaving(true);
             const response = await uploadBioImage(formData);
             if (type === 'profile') setProfileImageUrl(response.data.url);
-            else setBackgroundImageUrl(response.data.url);
+            else if (type === 'background') setBackgroundImageUrl(response.data.url);
+            else if (type === 'carousel') {
+                if (backgroundImages.length >= 5) {
+                    setError('Máximo de 5 imagens no carrossel.');
+                    return;
+                }
+                setBackgroundImages([...backgroundImages, response.data.url]);
+            }
         } catch (err) {
             console.error('Upload error:', err);
             setError('Falha no upload da imagem.');
@@ -394,13 +422,16 @@ export default function BioEditor({ onShowPlans }) {
             slug,
             title,
             description,
-            links: links.filter(l => l.title && l.url),
+            links: links.filter(l => l.title && (l.url || l.type === 'message' || l.phone || l.address)),
             backgroundColor,
             textColor,
+            descriptionColor,
             buttonColor,
+            buttonsTransparent,
             fontFamily,
             profileImageUrl,
             backgroundImageUrl,
+            backgroundImages,
             showLogo,
             socials
         };
@@ -501,7 +532,7 @@ export default function BioEditor({ onShowPlans }) {
                             </button>
                         </div>
                     ) : (
-                        <>
+                        <div className="flex-1 flex flex-col overflow-hidden">
                             <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900/95 backdrop-blur z-10 sticky top-0 flex justify-between items-center">
                                 <div>
                                     <h2 className="text-lg font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-50">
@@ -613,6 +644,7 @@ export default function BioEditor({ onShowPlans }) {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Profile Photo */}
                                         <div className="space-y-3">
                                             <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Foto de Perfil</label>
                                             <div className="flex gap-3">
@@ -630,8 +662,10 @@ export default function BioEditor({ onShowPlans }) {
                                                 </label>
                                             </div>
                                         </div>
+
+                                        {/* Main Background Image */}
                                         <div className="space-y-3">
-                                            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Imagem de Fundo</label>
+                                            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Imagem de Fundo Principal</label>
                                             <div className="flex gap-3">
                                                 <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden flex-shrink-0 relative group/avatar">
                                                     {backgroundImageUrl ? (
@@ -655,7 +689,40 @@ export default function BioEditor({ onShowPlans }) {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="space-y-3">
+
+                                        {/* Carousel Background Section (Growth/Pro) */}
+                                        <div className={`space-y-3 col-span-full ${(userPlan === 'start' || userPlan === 'trial') ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Carrossel de Fundo (Máx 5)</label>
+                                                    {(userPlan === 'start' || userPlan === 'trial') && <span className="text-[9px] font-black text-amber-500 uppercase tracking-tighter">Somente Growth/Pro</span>}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-zinc-400">{backgroundImages.length}/5</span>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                                {backgroundImages.map((img, idx) => (
+                                                    <div key={idx} className="aspect-square rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden relative group/carousel">
+                                                        <img src={img} className="w-full h-full object-cover" alt="" />
+                                                        <button
+                                                            onClick={() => setBackgroundImages(backgroundImages.filter((_, i) => i !== idx))}
+                                                            className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {backgroundImages.length < 5 && (
+                                                    <label className="aspect-square flex flex-col justify-center items-center border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                                        <Plus className="w-5 h-5 text-indigo-600" />
+                                                        <input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'carousel')} accept="image/*" />
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Typography */}
+                                        <div className="space-y-3 col-span-full">
                                             <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Tipografia</label>
                                             <div className="relative">
                                                 <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -671,292 +738,392 @@ export default function BioEditor({ onShowPlans }) {
                                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Cor Fundo</label>
-                                            <div className="flex bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 rounded-lg">
-                                                <input type="color" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent" />
-                                                <span className="ml-2 text-xs font-mono self-center text-zinc-500">{backgroundColor}</span>
+                                        {/* Colors Grid */}
+                                        <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Cor Fundo</label>
+                                                <div className="flex bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 rounded-lg">
+                                                    <input type="color" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent" />
+                                                    <span className="ml-2 text-xs font-mono self-center text-zinc-500">{backgroundColor}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Cor Texto</label>
-                                            <div className="flex bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 rounded-lg">
-                                                <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent" />
-                                                <span className="ml-2 text-xs font-mono self-center text-zinc-500">{textColor}</span>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Cor Texto</label>
+                                                <div className="flex bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 rounded-lg">
+                                                    <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent" />
+                                                    <span className="ml-2 text-xs font-mono self-center text-zinc-500">{textColor}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Cor Botões</label>
-                                            <div className="flex bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 rounded-lg">
-                                                <input type="color" value={buttonColor} onChange={(e) => setButtonColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent" />
-                                                <span className="ml-2 text-xs font-mono self-center text-zinc-500">{buttonColor}</span>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Cor Botões</label>
+                                                <div className="flex bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 rounded-lg">
+                                                    <input type="color" value={buttonColor} onChange={(e) => setButtonColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent" />
+                                                    <span className="ml-2 text-xs font-mono self-center text-zinc-500">{buttonColor}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Exibir Logo iSocialMedia</label>
-                                            <div className="flex items-center gap-2 h-[44px]">
-                                                <button
-                                                    onClick={() => userPlan === 'pro' && setShowLogo(!showLogo)}
-                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${showLogo ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'
-                                                        } ${userPlan !== 'pro' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                >
-                                                    <span
-                                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showLogo ? 'translate-x-6' : 'translate-x-1'
-                                                            }`}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Cor Título & Bio</label>
+                                                    {(userPlan === 'start' || userPlan === 'trial') && <span className="text-[9px] font-black text-amber-500 uppercase tracking-tighter">Somente Growth/Pro</span>}
+                                                </div>
+                                                <div className={`flex bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 rounded-lg ${(userPlan === 'start' || userPlan === 'trial') ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                    <input
+                                                        type="color"
+                                                        value={descriptionColor}
+                                                        onChange={(e) => setDescriptionColor(e.target.value)}
+                                                        className="w-8 h-8 rounded cursor-pointer bg-transparent"
+                                                        disabled={userPlan === 'start' || userPlan === 'trial'}
                                                     />
-                                                </button>
-                                                {userPlan !== 'pro' && <span className="text-[10px] font-black text-amber-500 uppercase tracking-tighter">Somente Pro</span>}
+                                                    <span className="ml-2 text-xs font-mono self-center text-zinc-500">{descriptionColor}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Toggles */}
+                                        <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Botões Transparentes</label>
+                                                    {(userPlan === 'start' || userPlan === 'trial') && <span className="text-[9px] font-black text-amber-500 uppercase tracking-tighter">Somente Growth/Pro</span>}
+                                                </div>
+                                                <div className="flex items-center gap-2 h-[44px]">
+                                                    <button
+                                                        onClick={() => (userPlan !== 'start' && userPlan !== 'trial') && setButtonsTransparent(!buttonsTransparent)}
+                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${buttonsTransparent ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'
+                                                            } ${(userPlan === 'start' || userPlan === 'trial') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        <span
+                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${buttonsTransparent ? 'translate-x-6' : 'translate-x-1'
+                                                                }`}
+                                                        />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Exibir Logo iSocialMedia</label>
+                                                <div className="flex items-center gap-2 h-[44px]">
+                                                    <button
+                                                        onClick={() => userPlan === 'pro' && setShowLogo(!showLogo)}
+                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${showLogo ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'
+                                                            } ${userPlan !== 'pro' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        <span
+                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showLogo ? 'translate-x-6' : 'translate-x-1'
+                                                                }`}
+                                                        />
+                                                    </button>
+                                                    {userPlan !== 'pro' && <span className="text-[10px] font-black text-amber-500 uppercase tracking-tighter">Somente Pro</span>}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                </div>
 
-                                <div className="h-px bg-zinc-100 dark:bg-zinc-800"></div>
+                                    <div className="h-px bg-zinc-100 dark:bg-zinc-800"></div>
 
-                                {/* Socials Group */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider">
-                                        <Instagram className="w-3 h-3" /> Redes Sociais
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {[
-                                            { id: 'instagram', icon: <Instagram className="w-4 h-4" />, label: 'Instagram', placeholder: '@usuario' },
-                                            { id: 'facebook', icon: <Facebook className="w-4 h-4" />, label: 'Facebook', placeholder: 'link perfil' },
-                                            { id: 'whatsapp', icon: <MessageCircle className="w-4 h-4" />, label: 'WhatsApp', placeholder: 'número com DDD' },
-                                            { id: 'twitter', icon: <Twitter className="w-4 h-4" />, label: 'Twitter/X', placeholder: '@usuario' },
-                                            { id: 'youtube', icon: <Youtube className="w-4 h-4" />, label: 'YouTube', placeholder: 'link canal' },
-                                            { id: 'tiktok', icon: <Play className="w-4 h-4" />, label: 'TikTok', placeholder: '@usuario' },
-                                            { id: 'linkedin', icon: <Linkedin className="w-4 h-4" />, label: 'LinkedIn', placeholder: 'link perfil' },
-                                            { id: 'email', icon: <Mail className="w-4 h-4" />, label: 'E-mail', placeholder: 'seu@email.com' }
-                                        ].map(social => (
-                                            <div key={social.id} className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-zinc-500 uppercase flex items-center gap-1.5">
-                                                    {social.icon} {social.label}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={socials[social.id] || ''}
-                                                    onChange={(e) => setSocials({ ...socials, [social.id]: e.target.value })}
-                                                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                                    placeholder={social.placeholder}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="h-px bg-zinc-100 dark:bg-zinc-800"></div>
-
-                                {/* Links Group */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
+                                    {/* Socials Group */}
+                                    <div className="space-y-4">
                                         <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider">
-                                            <LinkIcon className="w-3 h-3" /> Links do Perfil ({links.length}/{userPlan === 'pro' ? 20 : userPlan === 'growth' ? 10 : 5})
+                                            <Instagram className="w-3 h-3" /> Redes Sociais
                                         </div>
-                                        <button
-                                            onClick={handleAddLink}
-                                            disabled={links.length >= 10}
-                                            className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                                        >
-                                            + Adicionar Link
-                                        </button>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {[
+                                                { id: 'instagram', icon: <Instagram className="w-4 h-4" />, label: 'Instagram', placeholder: '@usuario' },
+                                                { id: 'facebook', icon: <Facebook className="w-4 h-4" />, label: 'Facebook', placeholder: 'link perfil' },
+                                                { id: 'whatsapp', icon: <MessageCircle className="w-4 h-4" />, label: 'WhatsApp', placeholder: 'número com DDD' },
+                                                { id: 'twitter', icon: <Twitter className="w-4 h-4" />, label: 'Twitter/X', placeholder: '@usuario' },
+                                                { id: 'youtube', icon: <Youtube className="w-4 h-4" />, label: 'YouTube', placeholder: 'link canal' },
+                                                { id: 'tiktok', icon: <Play className="w-4 h-4" />, label: 'TikTok', placeholder: '@usuario' },
+                                                { id: 'linkedin', icon: <Linkedin className="w-4 h-4" />, label: 'LinkedIn', placeholder: 'link perfil' },
+                                                { id: 'email', icon: <Mail className="w-4 h-4" />, label: 'E-mail', placeholder: 'seu@email.com' }
+                                            ].map(social => (
+                                                <div key={social.id} className="space-y-1.5">
+                                                    <label className="text-[10px] font-bold text-zinc-500 uppercase flex items-center gap-1.5">
+                                                        {social.icon} {social.label}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={socials[social.id] || ''}
+                                                        onChange={(e) => setSocials({ ...socials, [social.id]: e.target.value })}
+                                                        className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                        placeholder={social.placeholder}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    <DndContext
-                                        sensors={sensors}
-                                        collisionDetection={closestCenter}
-                                        onDragEnd={handleDragEnd}
-                                    >
-                                        <SortableContext
-                                            items={links.map((_, i) => `link-${i}`)}
-                                            strategy={verticalListSortingStrategy}
+                                    <div className="h-px bg-zinc-100 dark:bg-zinc-800"></div>
+
+                                    {/* Links Group */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider">
+                                                <LinkIcon className="w-3 h-3" /> Links do Perfil ({links.length}/{userPlan === 'pro' ? 20 : userPlan === 'growth' ? 10 : 5})
+                                            </div>
+                                            <button
+                                                onClick={handleAddLink}
+                                                disabled={links.length >= 10}
+                                                className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                                            >
+                                                + Adicionar Link
+                                            </button>
+                                        </div>
+
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleDragEnd}
                                         >
-                                            <div className="space-y-4">
-                                                {links.map((link, index) => (
-                                                    <SortableItem key={`link-${index}`} id={`link-${index}`}>
-                                                        <div className="p-5 pl-10 bg-zinc-50/50 dark:bg-zinc-800/30 rounded-3xl border border-zinc-200 dark:border-zinc-800 relative group transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveLink(index)}
-                                                                className="absolute -right-2 -top-2 bg-white dark:bg-zinc-800 text-zinc-400 hover:text-red-500 rounded-full p-1.5 border border-zinc-200 dark:border-zinc-700 shadow-sm opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 z-10"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </button>
-
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                <div className="space-y-3">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={link.title}
-                                                                        onChange={(e) => handleLinkChange(index, 'title', e.target.value)}
-                                                                        className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1.5 text-sm font-bold focus:outline-none focus:border-indigo-500 transition-colors text-zinc-900 dark:text-zinc-100"
-                                                                        placeholder="Ex: Minha Loja"
-                                                                    />
-                                                                    <div className="flex items-center gap-2">
-                                                                        <input
-                                                                            type="url"
-                                                                            value={link.url}
-                                                                            onChange={(e) => handleLinkChange(index, 'url', e.target.value)}
-                                                                            className="flex-1 bg-transparent border-none p-0 text-xs text-zinc-500 focus:outline-none focus:text-indigo-600 transition-colors font-medium text-ellipsis overflow-hidden"
-                                                                            placeholder="https://sua-url.com"
-                                                                        />
-                                                                        <div className="flex items-center gap-1">
-                                                                            <button
-                                                                                onClick={() => handleWhatsAppToggle(index)}
-                                                                                className={`p-1 px-1.5 rounded text-[9px] font-black uppercase tracking-tighter transition-all ${link.url?.includes('whatsapp.com') || link.url?.includes('wa.me') ? 'bg-emerald-500 text-white' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100'}`}
-                                                                                title={link.url?.includes('whatsapp.com') || link.url?.includes('wa.me') ? "Remover configuração de WhatsApp" : "Tornar link de WhatsApp"}
-                                                                            >
-                                                                                WhatsApp
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => handleMapsHelper(index)}
-                                                                                className="p-1 px-1.5 bg-zinc-100 dark:bg-zinc-900 rounded text-[9px] font-black text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all uppercase tracking-tighter"
-                                                                                title="Converter endereço para Google Maps"
-                                                                            >
-                                                                                Mapa
-                                                                            </button>
+                                            <SortableContext
+                                                items={links.map((_, i) => `link-${i}`)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                <div className="space-y-4">
+                                                    {links.map((link, index) => (
+                                                        <SortableItem key={`link-${index}`} id={`link-${index}`}>
+                                                            {({ attributes, listeners }) => (
+                                                                <>
+                                                                    <div className="p-5 pl-12 bg-zinc-50/50 dark:bg-zinc-800/30 rounded-3xl border border-zinc-200 dark:border-zinc-800 relative group/card transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md">
+                                                                        <div
+                                                                            {...attributes}
+                                                                            {...listeners}
+                                                                            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing text-zinc-400 hover:text-indigo-600 dark:text-zinc-600 dark:hover:text-indigo-400 z-10 opacity-40 group-hover/card:opacity-100 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-all"
+                                                                            title="Arraste para reordenar"
+                                                                        >
+                                                                            <GripVertical className="w-5 h-5" />
                                                                         </div>
-                                                                    </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRemoveLink(index)}
+                                                                            className="absolute -right-2 -top-2 bg-white dark:bg-zinc-800 text-zinc-400 hover:text-red-500 rounded-full p-1.5 border border-zinc-200 dark:border-zinc-700 shadow-sm opacity-0 group-hover/card:opacity-100 transition-all scale-75 group-hover:scale-100 z-10"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
 
-                                                                    {(link.url?.includes('whatsapp.com') || link.url?.includes('wa.me')) && (
-                                                                        <div className="p-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 space-y-2 mt-2">
-                                                                            <div className="flex items-center gap-2 mb-1">
-                                                                                <MessageCircle className="w-3 h-3 text-emerald-500" />
-                                                                                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">Configuração WhatsApp</span>
-                                                                            </div>
-                                                                            <div className="space-y-2">
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                            <div className="space-y-3">
                                                                                 <input
                                                                                     type="text"
-                                                                                    value={link.phone || ''}
-                                                                                    onChange={(e) => handleWhatsAppChange(index, 'phone', e.target.value)}
-                                                                                    className="w-full bg-white dark:bg-zinc-900/50 border border-emerald-100 dark:border-emerald-900/20 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
-                                                                                    placeholder="Número com DDD (ex: 11999999999)"
+                                                                                    value={link.title}
+                                                                                    onChange={(e) => handleLinkChange(index, 'title', e.target.value)}
+                                                                                    className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1.5 text-sm font-bold focus:outline-none focus:border-indigo-500 transition-colors text-zinc-900 dark:text-zinc-100"
+                                                                                    placeholder="Ex: Minha Loja"
                                                                                 />
-                                                                                <textarea
-                                                                                    value={link.whatsappMessage || ''}
-                                                                                    onChange={(e) => handleWhatsAppChange(index, 'message', e.target.value)}
-                                                                                    className="w-full bg-white dark:bg-zinc-900/50 border border-emerald-100 dark:border-emerald-900/20 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/30 resize-none h-16"
-                                                                                    placeholder="Mensagem pré-definida (opcional)"
-                                                                                />
+                                                                                <div className="flex items-center gap-2 mb-3">
+                                                                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Tipo de Destino:</label>
+                                                                                    <select
+                                                                                        value={link.type || 'url'}
+                                                                                        onChange={(e) => handleLinkChange(index, 'type', e.target.value)}
+                                                                                        className="bg-zinc-100 dark:bg-zinc-800 border-none rounded-lg px-2 py-0.5 text-[10px] font-bold text-zinc-600 dark:text-zinc-400 focus:ring-0 cursor-pointer"
+                                                                                    >
+                                                                                        <option value="url">🔗 LINK / URL</option>
+                                                                                        <option value="whatsapp">💬 WHATSAPP</option>
+                                                                                        <option value="message">📢 MENSAGEM (POPUP)</option>
+                                                                                        <option value="map">📍 MAPA / ENDEREÇO</option>
+                                                                                    </select>
+                                                                                </div>
+
+                                                                                {link.type === 'message' && (
+                                                                                    <div className="space-y-3 p-3 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                                            <MessageSquare className="w-3 h-3 text-indigo-500" />
+                                                                                            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">Conteúdo do Popup</span>
+                                                                                        </div>
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={link.messageTitle || ''}
+                                                                                            onChange={(e) => handleLinkChange(index, 'messageTitle', e.target.value)}
+                                                                                            className="w-full bg-white dark:bg-zinc-900/50 border border-indigo-100 dark:border-indigo-900/20 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
+                                                                                            placeholder="Título do Popup (Ex: Informações Importantes)"
+                                                                                        />
+                                                                                        <textarea
+                                                                                            value={link.messageBody || ''}
+                                                                                            onChange={(e) => handleLinkChange(index, 'messageBody', e.target.value)}
+                                                                                            rows={3}
+                                                                                            className="w-full bg-white dark:bg-zinc-900/50 border border-indigo-100 dark:border-indigo-900/20 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/30 resize-none no-scrollbar"
+                                                                                            placeholder="Descreva a mensagem que aparecerá ao clicar no botão..."
+                                                                                        />
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {link.type === 'whatsapp' && (
+                                                                                    <div className="p-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 space-y-2">
+                                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                                            <MessageCircle className="w-3 h-3 text-emerald-500" />
+                                                                                            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">Configuração WhatsApp</span>
+                                                                                        </div>
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={link.phone || ''}
+                                                                                            onChange={(e) => handleWhatsAppChange(index, 'phone', e.target.value)}
+                                                                                            className="w-full bg-white dark:bg-zinc-900/50 border border-emerald-100 dark:border-emerald-900/20 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+                                                                                            placeholder="Número com DDD (ex: 11999999999)"
+                                                                                        />
+                                                                                        <textarea
+                                                                                            value={link.whatsappMessage || ''}
+                                                                                            onChange={(e) => handleWhatsAppChange(index, 'message', e.target.value)}
+                                                                                            rows={2}
+                                                                                            className="w-full bg-white dark:bg-zinc-900/50 border border-emerald-100 dark:border-emerald-900/20 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/30 resize-none no-scrollbar"
+                                                                                            placeholder="Mensagem padrão (opcional)"
+                                                                                        />
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {link.type === 'map' && (
+                                                                                    <div className="p-3 bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30 space-y-2">
+                                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                                            <Globe className="w-3 h-3 text-amber-500" />
+                                                                                            <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-tighter">Endereço / Localização</span>
+                                                                                        </div>
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={link.address || ''}
+                                                                                                onChange={(e) => {
+                                                                                                    const addr = e.target.value;
+                                                                                                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+                                                                                                    const newLinks = [...links];
+                                                                                                    newLinks[index].address = addr;
+                                                                                                    newLinks[index].url = mapsUrl;
+                                                                                                    setLinks(newLinks);
+                                                                                                }}
+                                                                                                className="flex-1 bg-white dark:bg-zinc-900/50 border border-amber-100 dark:border-amber-900/20 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                                                                                                placeholder="Rua, Número, Bairro, Cidade - Estado"
+                                                                                            />
+                                                                                        </div>
+                                                                                        <p className="text-[10px] text-zinc-400 italic">O link será convertido automaticamente para Google Maps.</p>
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {(link.type === 'url' || !link.type) && (
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <input
+                                                                                            type="url"
+                                                                                            value={link.url}
+                                                                                            onChange={(e) => handleLinkChange(index, 'url', e.target.value)}
+                                                                                            className="flex-1 bg-transparent border-none p-0 text-xs text-zinc-500 focus:outline-none focus:text-indigo-600 transition-colors font-medium text-ellipsis overflow-hidden"
+                                                                                            placeholder="https://sua-url.com"
+                                                                                        />
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
                                                                         </div>
-                                                                    )}
-                                                                    <div className="pt-2 flex items-center gap-3">
-                                                                        <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 overflow-hidden flex-shrink-0 relative">
-                                                                            {link.image ? (
-                                                                                <img src={link.image} className="w-full h-full object-cover" alt="" />
-                                                                            ) : (
-                                                                                <div className="w-full h-full flex items-center justify-center text-zinc-300"><ImageIcon className="w-3 h-3" /></div>
+                                                                        <div className="pt-2 flex items-center gap-3">
+                                                                            <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 overflow-hidden flex-shrink-0 relative">
+                                                                                {link.image ? (
+                                                                                    <img src={link.image} className="w-full h-full object-cover" alt="" />
+                                                                                ) : (
+                                                                                    <div className="w-full h-full flex items-center justify-center text-zinc-300"><ImageIcon className="w-3 h-3" /></div>
+                                                                                )}
+                                                                            </div>
+                                                                            <label className="flex-1 px-3 py-1.5 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
+                                                                                <span className="text-[9px] font-black text-indigo-600 uppercase">Imagem do Link</span>
+                                                                                <input type="file" className="hidden" onChange={(e) => handleLinkImageUpload(e, index)} accept="image/*" />
+                                                                            </label>
+                                                                            {link.image && (
+                                                                                <button
+                                                                                    onClick={() => handleLinkChange(index, 'image', null)}
+                                                                                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                                                                                >
+                                                                                    <Trash2 className="w-3 h-3" />
+                                                                                </button>
                                                                             )}
                                                                         </div>
-                                                                        <label className="flex-1 px-3 py-1.5 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                                                                            <span className="text-[9px] font-black text-indigo-600 uppercase">Imagem do Link</span>
-                                                                            <input type="file" className="hidden" onChange={(e) => handleLinkImageUpload(e, index)} accept="image/*" />
-                                                                        </label>
-                                                                        {link.image && (
-                                                                            <button
-                                                                                onClick={() => handleLinkChange(index, 'image', null)}
-                                                                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
-                                                                            >
-                                                                                <Trash2 className="w-3 h-3" />
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="bg-zinc-100/50 dark:bg-zinc-900/50 p-3 rounded-2xl space-y-2">
-                                                                    <div className="flex items-center justify-between mb-1">
-                                                                        <div className="flex items-center gap-2 text-[10px] font-black text-zinc-400 uppercase tracking-tighter">
-                                                                            <CalendarClock className="w-3 h-3" /> Exibição Agendada
-                                                                        </div>
-                                                                        {userPlan === 'start' && (
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={(e) => { e.preventDefault(); onShowPlans(); }}
-                                                                                className="text-[8px] text-amber-500 font-black hover:text-indigo-600"
-                                                                            >
-                                                                                GROWTH+
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="grid grid-cols-1 gap-2">
-                                                                        <div className="space-y-1">
-                                                                            <span className="text-[9px] font-bold text-zinc-500">Inicia em</span>
-                                                                            <input
-                                                                                type="datetime-local"
-                                                                                disabled={userPlan === 'start'}
-                                                                                value={link.scheduleStart || ''}
-                                                                                onChange={(e) => handleLinkChange(index, 'scheduleStart', e.target.value)}
-                                                                                className="w-full text-[10px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 disabled:opacity-50"
-                                                                            />
-                                                                        </div>
                                                                     </div>
 
-                                                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700/50 mt-2">
-                                                                        <div className="space-y-1">
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={(e) => {
-                                                                                    e.preventDefault();
-                                                                                    if (userPlan === 'start' || userPlan === 'trial') onShowPlans();
-                                                                                }}
-                                                                                className="text-[9px] font-bold text-zinc-500 flex items-center gap-1 hover:text-indigo-600 transition-colors"
-                                                                            >
-                                                                                Senha {(userPlan === 'start' || userPlan === 'trial') && <span className="text-[8px] text-amber-500 font-black">GROWTH+</span>}
-                                                                            </button>
-                                                                            <input
-                                                                                type="text"
-                                                                                disabled={userPlan === 'start' || userPlan === 'trial'}
-                                                                                value={link.password || ''}
-                                                                                onChange={(e) => handleLinkChange(index, 'password', e.target.value)}
-                                                                                placeholder="Opcional"
-                                                                                className="w-full text-[10px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 disabled:opacity-50"
-                                                                            />
-                                                                        </div>
-                                                                        <div className="space-y-1">
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={(e) => {
-                                                                                    e.preventDefault();
-                                                                                    if (userPlan === 'start' || userPlan === 'trial') onShowPlans();
-                                                                                }}
-                                                                                className="text-[9px] font-bold text-zinc-500 flex items-center gap-1 hover:text-indigo-600 transition-colors"
-                                                                            >
-                                                                                Maior Idade {(userPlan === 'start' || userPlan === 'trial') && <span className="text-[8px] text-amber-500 font-black">GROWTH+</span>}
-                                                                            </button>
-                                                                            <div className="flex items-center h-[26px]">
+                                                                    <div className="bg-zinc-100/50 dark:bg-zinc-900/50 p-3 rounded-2xl space-y-2">
+                                                                        <div className="flex items-center justify-between mb-1">
+                                                                            <div className="flex items-center gap-2 text-[10px] font-black text-zinc-400 uppercase tracking-tighter">
+                                                                                <CalendarClock className="w-3 h-3" /> Exibição Agendada
+                                                                            </div>
+                                                                            {userPlan === 'start' && (
                                                                                 <button
                                                                                     type="button"
-                                                                                    onClick={() => (userPlan === 'pro' || userPlan === 'growth') && handleLinkChange(index, 'requireAge', !link.requireAge)}
-                                                                                    className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors focus:outline-none ${link.requireAge ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'
-                                                                                        } ${userPlan === 'start' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                                    onClick={(e) => { e.preventDefault(); onShowPlans(); }}
+                                                                                    className="text-[8px] text-amber-500 font-black hover:text-indigo-600"
                                                                                 >
-                                                                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${link.requireAge ? 'translate-x-4' : 'translate-x-1'}`} />
+                                                                                    GROWTH+
                                                                                 </button>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="grid grid-cols-1 gap-2">
+                                                                            <div className="space-y-1">
+                                                                                <span className="text-[9px] font-bold text-zinc-500">Inicia em</span>
+                                                                                <input
+                                                                                    type="datetime-local"
+                                                                                    disabled={userPlan === 'start'}
+                                                                                    value={link.scheduleStart || ''}
+                                                                                    onChange={(e) => handleLinkChange(index, 'scheduleStart', e.target.value)}
+                                                                                    className="w-full text-[10px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 disabled:opacity-50"
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700/50 mt-2">
+                                                                            <div className="space-y-1">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.preventDefault();
+                                                                                        if (userPlan === 'start' || userPlan === 'trial') onShowPlans();
+                                                                                    }}
+                                                                                    className="text-[9px] font-bold text-zinc-500 flex items-center gap-1 hover:text-indigo-600 transition-colors"
+                                                                                >
+                                                                                    Senha {(userPlan === 'start' || userPlan === 'trial') && <span className="text-[8px] text-amber-500 font-black">GROWTH+</span>}
+                                                                                </button>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    disabled={userPlan === 'start' || userPlan === 'trial'}
+                                                                                    value={link.password || ''}
+                                                                                    onChange={(e) => handleLinkChange(index, 'password', e.target.value)}
+                                                                                    placeholder="Opcional"
+                                                                                    className="w-full text-[10px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 disabled:opacity-50"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.preventDefault();
+                                                                                        if (userPlan === 'start' || userPlan === 'trial') onShowPlans();
+                                                                                    }}
+                                                                                    className="text-[9px] font-bold text-zinc-500 flex items-center gap-1 hover:text-indigo-600 transition-colors"
+                                                                                >
+                                                                                    Maior Idade {(userPlan === 'start' || userPlan === 'trial') && <span className="text-[8px] text-amber-500 font-black">GROWTH+</span>}
+                                                                                </button>
+                                                                                <div className="flex items-center h-[26px]">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => (userPlan === 'pro' || userPlan === 'growth') && handleLinkChange(index, 'requireAge', !link.requireAge)}
+                                                                                        className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors focus:outline-none ${link.requireAge ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'
+                                                                                            } ${userPlan === 'start' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                                    >
+                                                                                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${link.requireAge ? 'translate-x-4' : 'translate-x-1'}`} />
+                                                                                    </button>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </SortableItem>
-                                                ))}
-                                            </div>
-                                        </SortableContext>
-                                    </DndContext>
+                                                                </>
+                                                            )}
+                                                        </SortableItem>
+                                                    ))}
+                                                </div>
+                                            </SortableContext>
+                                        </DndContext>
+                                    </div>
                                 </div>
                             </div>
-                        </>
-                    )}
+                        </div>
+                    )
+                    }
                 </div>
             </div>
 
             {/* Right Panel: Live Preview */}
-            <div className="lg:col-span-5 flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800 relative">
+            <div className="lg:col-span-5 flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 rounded-3xl border border-zinc-200 dark:border-zinc-800 relative">
                 <div className="absolute top-6 left-6 flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider">
                     <Smartphone className="w-4 h-4" /> Pré-visualização Real
                 </div>
@@ -981,8 +1148,11 @@ export default function BioEditor({ onShowPlans }) {
                                 fontFamily,
                                 profileImageUrl,
                                 backgroundImageUrl,
+                                backgroundImages,
                                 showLogo,
-                                userPlan
+                                userPlan,
+                                descriptionColor,
+                                buttonsTransparent
                             }}
                             slug={slug}
                             isPreview={true}
@@ -1102,6 +1272,6 @@ export default function BioEditor({ onShowPlans }) {
                     </div>
                 )
             }
-        </div >
+        </div>
     );
 }

@@ -1,6 +1,7 @@
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const fs = require('fs');
+const path = require('path');
 
 const s3Client = new S3Client({
     endpoint: process.env.STORAGE_ENDPOINT,
@@ -12,9 +13,11 @@ const s3Client = new S3Client({
     forcePathStyle: true, // Specific for Supabase/S3-compatible storage
 });
 
-exports.uploadToSupabase = async (file) => {
+exports.uploadToSupabase = async (file, prefix = '') => {
     try {
-        const fileName = `${Date.now()}-${file.originalname}`;
+        const ext = path.extname(file.originalname);
+        const cleanPrefix = prefix ? `${prefix.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-` : '';
+        const fileName = `${cleanPrefix}${Date.now()}${ext}`;
         const upload = new Upload({
             client: s3Client,
             params: {

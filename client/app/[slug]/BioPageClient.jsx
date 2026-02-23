@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { trackBioClick, verifyLinkPassword } from '@/services/api';
 import {
     Instagram, Globe, Facebook, MessageCircle, Twitter,
-    Youtube, Mail, Linkedin, Play, Lock, AlertTriangle, ChevronRight, X
+    Youtube, Mail, Linkedin, Play, Lock, AlertTriangle, ChevronRight, X, MessageSquare
 } from 'lucide-react';
 
 export default function BioPageClient({ page, slug, apiBase, isPreview = false }) {
@@ -16,6 +16,23 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
     const [verifying, setVerifying] = useState(false);
     const [modalError, setModalError] = useState('');
     const [dontShowAgeAgain, setDontShowAgeAgain] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [showMessageModal, setShowMessageModal] = useState(false);
+    const [activeMessage, setActiveMessage] = useState(null);
+
+    const images = page.backgroundImages && page.backgroundImages.length > 0
+        ? page.backgroundImages
+        : (page.backgroundImageUrl ? [page.backgroundImageUrl] : []);
+
+    useEffect(() => {
+        if (images.length <= 1) return;
+
+        const interval = setInterval(() => {
+            setCurrentImageIndex((prev) => (prev + 1) % images.length);
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [images.length]);
 
     const fonts = [
         { name: 'Inter', family: "'Inter', sans-serif" },
@@ -29,6 +46,7 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
         if (lowerUrl.includes('instagram.com')) return <Instagram className="w-5 h-5" />;
         if (lowerUrl.includes('facebook.com')) return <Facebook className="w-5 h-5" />;
         if (lowerUrl.includes('wa.me') || lowerUrl.includes('whatsapp.com')) return <MessageCircle className="w-5 h-5" />;
+        if (lowerUrl.includes('message')) return <MessageSquare className="w-5 h-5" />;
         if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) return <Twitter className="w-5 h-5" />;
         if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return <Youtube className="w-5 h-5" />;
         if (lowerUrl.includes('tiktok.com')) return <Play className="w-5 h-5" />;
@@ -60,6 +78,13 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
         if (link.isPasswordProtected) {
             setPendingLink({ index, ...link });
             setShowPasswordModal(true);
+            return;
+        }
+
+        if (link.type === 'message') {
+            trackBioClick(page.id, index).catch(console.error);
+            setActiveMessage({ title: link.messageTitle, body: link.messageBody });
+            setShowMessageModal(true);
             return;
         }
 
@@ -135,14 +160,18 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
         >
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@400;700;900&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet" />
 
-            {backgroundImg && (
+            {images.length > 0 && images.map((img, idx) => (
                 <div
+                    key={idx}
                     className={`${isPreview ? 'absolute' : 'fixed'} inset-0 z-0 bg-cover bg-center transition-opacity duration-1000`}
-                    style={{ backgroundImage: `url(${backgroundImg})` }}
+                    style={{
+                        backgroundImage: `url(${img.startsWith('http') ? img : `${apiBase}${img}`})`,
+                        opacity: idx === currentImageIndex ? 1 : 0
+                    }}
                 >
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] bg-gradient-to-b from-black/20 via-transparent to-black/60"></div>
                 </div>
-            )}
+            ))}
 
             <div className="z-10 w-full max-w-[440px] flex flex-col items-center">
                 <div className="relative mb-6">
@@ -160,11 +189,17 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
                 </div>
 
                 <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-                    <h1 className="text-3xl font-black tracking-tight mb-2 drop-shadow-md">
+                    <h1
+                        className="text-3xl font-black tracking-tight mb-2 drop-shadow-md"
+                        style={{ color: page.descriptionColor || page.textColor || 'inherit' }}
+                    >
                         {page.title || (slug ? `@${slug}` : '') || 'Sua Página'}
                     </h1>
                     {page.description && (
-                        <p className="text-sm font-medium opacity-90 leading-relaxed max-w-[280px] mx-auto drop-shadow whitespace-pre-wrap">
+                        <p
+                            className="text-sm font-medium opacity-90 leading-relaxed max-w-[280px] mx-auto drop-shadow whitespace-pre-wrap"
+                            style={{ color: page.descriptionColor || page.textColor || 'inherit' }}
+                        >
                             {page.description}
                         </p>
                     )}
@@ -189,7 +224,10 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
                                     href={getSocialLink(platform, handle)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="opacity-80 hover:opacity-100 hover:scale-125 transition-all duration-300 transform drop-shadow-lg"
+                                    className="opacity-90 hover:opacity-100 hover:scale-125 transition-all duration-300 transform drop-shadow-md"
+                                    style={{
+                                        color: page.descriptionColor || page.textColor || 'inherit'
+                                    }}
                                 >
                                     {icon}
                                 </a>
@@ -210,9 +248,9 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
                             <button
                                 key={index}
                                 onClick={() => handleLinkClick(index, link)}
-                                className={`group relative w-full transition-all duration-300 transform hover:scale-[1.02] overflow-hidden rounded-2xl border border-white/10 ${showFullCard ? 'h-48' : 'p-4'}`}
+                                className={`group relative w-full transition-all duration-300 transform hover:scale-[1.02] overflow-hidden rounded-2xl border ${page.buttonsTransparent ? 'border-white/20' : 'border-white/10'} ${showFullCard ? 'h-48' : 'p-4'}`}
                                 style={{
-                                    backgroundColor: showFullCard ? 'transparent' : (page.buttonColor || 'rgba(255,255,255,0.05)'),
+                                    backgroundColor: showFullCard ? 'transparent' : (page.buttonsTransparent ? 'transparent' : (page.buttonColor || 'rgba(255,255,255,0.05)')),
                                     color: page.textColor || '#ffffff'
                                 }}
                             >
@@ -321,6 +359,41 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
                                         Continuar
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showMessageModal && activeMessage && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+                        <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowMessageModal(false)}></div>
+                        <div className="bg-zinc-900 border border-white/10 rounded-[32px] w-full max-w-[400px] p-8 relative z-10 animate-in zoom-in-95 duration-300 shadow-2xl">
+                            <button
+                                onClick={() => setShowMessageModal(false)}
+                                className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-white rounded-full hover:bg-white/5 transition-all"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-6">
+                                    <MessageSquare className="w-8 h-8 text-indigo-400" />
+                                </div>
+                                <h2 className="text-xl font-black mb-3 text-white leading-tight">
+                                    {activeMessage.title || 'Mensagem'}
+                                </h2>
+                                <div className="w-full max-h-[300px] overflow-y-auto no-scrollbar mb-8">
+                                    <p className="text-zinc-400 text-sm md:text-base font-medium whitespace-pre-wrap leading-relaxed">
+                                        {activeMessage.body}
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowMessageModal(false)}
+                                    className="w-full py-4 bg-white hover:bg-zinc-100 text-black font-bold rounded-2xl shadow-xl transition-all tracking-wide"
+                                >
+                                    Fechar
+                                </button>
                             </div>
                         </div>
                     </div>

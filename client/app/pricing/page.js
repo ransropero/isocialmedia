@@ -153,7 +153,7 @@ export default function PricingPage() {
                                 Receber recomendação
                             </a>
                             <a
-                                href="https://www.instagram.com/isocialmidia/"
+                                href="https://www.instagram.com/isocial.media/"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 bg-zinc-800 text-white px-12 py-5 rounded-2xl font-black hover:scale-105 transition-transform shadow-2xl border border-white/10"
