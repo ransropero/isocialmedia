@@ -28,7 +28,7 @@ export default function Header({ user, onLogout, onShowPlans }) {
                 </div>
                 <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
                     iSocialM
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">i</span>
+                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">e</span>
                     di
                     <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">a</span>
                 </h1>
