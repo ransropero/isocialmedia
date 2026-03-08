@@ -7,7 +7,7 @@ import {
     Save, Link as LinkIcon, Smartphone, Palette, Layout,
     Type, CalendarClock, ChevronDown, Check, AlertCircle, Layers,
     Instagram, Facebook, Twitter, Youtube, Mail, MessageCircle, Linkedin, Play,
-    QrCode, Download, X, GripVertical, MessageSquare, Globe
+    QrCode, Download, X, GripVertical, MessageSquare, Globe, AtSign
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -80,6 +80,7 @@ export default function BioEditor({ onShowPlans }) {
         youtube: '',
         tiktok: '',
         linkedin: '',
+        threads: '',
         email: ''
     });
     const [backgroundColor, setBackgroundColor] = useState('#000000');
@@ -174,6 +175,7 @@ export default function BioEditor({ onShowPlans }) {
             youtube: '',
             tiktok: '',
             linkedin: '',
+            threads: '',
             email: ''
         });
         setBackgroundColor(page.backgroundColor || '#000000');
@@ -202,6 +204,7 @@ export default function BioEditor({ onShowPlans }) {
             youtube: '',
             tiktok: '',
             linkedin: '',
+            threads: '',
             email: ''
         });
         setBackgroundColor('#000000');
@@ -836,6 +839,7 @@ export default function BioEditor({ onShowPlans }) {
                                                 { id: 'youtube', icon: <Youtube className="w-4 h-4" />, label: 'YouTube', placeholder: 'link canal' },
                                                 { id: 'tiktok', icon: <Play className="w-4 h-4" />, label: 'TikTok', placeholder: '@usuario' },
                                                 { id: 'linkedin', icon: <Linkedin className="w-4 h-4" />, label: 'LinkedIn', placeholder: 'link perfil' },
+                                                { id: 'threads', icon: <AtSign className="w-4 h-4" />, label: 'Threads', placeholder: '@usuario' },
                                                 { id: 'email', icon: <Mail className="w-4 h-4" />, label: 'E-mail', placeholder: 'seu@email.com' }
                                             ].map(social => (
                                                 <div key={social.id} className="space-y-1.5">

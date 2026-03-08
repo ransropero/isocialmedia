@@ -71,6 +71,7 @@ export const uploadBioImage = (formData) => api.post('/bio/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
 });
 export const trackBioClick = (id, linkIndex) => api.post(`/bio/${id}/click`, { linkIndex });
+export const trackBioVisit = (id, source, referrer) => api.post(`/bio/${id}/visit`, { source, referrer });
 export const verifyLinkPassword = (id, linkIndex, password) => api.post(`/bio/${id}/verify-password`, { linkIndex, password });
 export const getBioAnalytics = (id, range = 'month') => api.get(`/bio/${id}/analytics?range=${range}`);
 

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { trackBioClick, verifyLinkPassword } from '@/services/api';
+import { trackBioClick, trackBioVisit, verifyLinkPassword } from '@/services/api';
 import {
     Instagram, Globe, Facebook, MessageCircle, Twitter,
-    Youtube, Mail, Linkedin, Play, Lock, AlertTriangle, ChevronRight, X, MessageSquare
+    Youtube, Mail, Linkedin, Play, Lock, AlertTriangle, ChevronRight, X, MessageSquare, AtSign
 } from 'lucide-react';
 
 export default function BioPageClient({ page, slug, apiBase, isPreview = false }) {
@@ -23,6 +23,33 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
     const images = page.backgroundImages && page.backgroundImages.length > 0
         ? page.backgroundImages
         : (page.backgroundImageUrl ? [page.backgroundImageUrl] : []);
+
+    useEffect(() => {
+        if (!page || !page.id || isPreview) return;
+
+        // Detect source
+        const urlParams = new URLSearchParams(window.location.search);
+        const utmSource = urlParams.get('utm_source') || urlParams.get('src');
+        let source = utmSource || 'direct';
+
+        if (!utmSource) {
+            const ref = document.referrer;
+            if (ref) {
+                if (ref.includes('instagram.com')) source = 'instagram';
+                else if (ref.includes('facebook.com')) source = 'facebook';
+                else if (ref.includes('whatsapp.com')) source = 'whatsapp';
+                else if (ref.includes('twitter.com') || ref.includes('x.com')) source = 'twitter';
+                else if (ref.includes('youtube.com')) source = 'youtube';
+                else if (ref.includes('linkedin.com')) source = 'linkedin';
+                else if (ref.includes('tiktok.com')) source = 'tiktok';
+                else if (ref.includes('google.com')) source = 'google';
+                else source = 'other';
+            }
+        }
+
+        // Track visit
+        trackBioVisit(page.id, source, document.referrer).catch(console.error);
+    }, [page?.id, isPreview]);
 
     useEffect(() => {
         if (images.length <= 1) return;
@@ -50,6 +77,7 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
         if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) return <Twitter className="w-5 h-5" />;
         if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return <Youtube className="w-5 h-5" />;
         if (lowerUrl.includes('tiktok.com')) return <Play className="w-5 h-5" />;
+        if (lowerUrl.includes('threads.net')) return <AtSign className="w-5 h-5" />;
         if (lowerUrl.includes('linkedin.com')) return <Linkedin className="w-5 h-5" />;
         if (lowerUrl.includes('google.com/maps') || lowerUrl.includes('maps.app') || lowerUrl.includes('waze.com')) return <Globe className="w-5 h-5" />;
         return useGeneric ? <Globe className="w-5 h-5" /> : null;
@@ -138,6 +166,7 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
             twitter: `https://twitter.com/${handle.replace('@', '')}`,
             youtube: handle.includes('/') ? handle : `https://youtube.com/@${handle.replace('@', '')}`,
             tiktok: `https://tiktok.com/@${handle.replace('@', '')}`,
+            threads: `https://threads.net/@${handle.replace('@', '')}`,
             linkedin: handle.includes('/') ? handle : `https://linkedin.com/in/${handle}`,
             email: `mailto:${handle}`
         };
@@ -215,8 +244,9 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
                                         platform === 'twitter' ? <Twitter className="w-6 h-6" /> :
                                             platform === 'youtube' ? <Youtube className="w-6 h-6" /> :
                                                 platform === 'tiktok' ? <Play className="w-6 h-6" /> :
-                                                    platform === 'linkedin' ? <Linkedin className="w-6 h-6" /> :
-                                                        platform === 'email' ? <Mail className="w-6 h-6" /> : <Globe className="w-6 h-6" />;
+                                                    platform === 'threads' ? <AtSign className="w-6 h-6" /> :
+                                                        platform === 'linkedin' ? <Linkedin className="w-6 h-6" /> :
+                                                            platform === 'email' ? <Mail className="w-6 h-6" /> : <Globe className="w-6 h-6" />;
 
                             return (
                                 <a

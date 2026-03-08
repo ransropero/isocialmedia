@@ -232,6 +232,26 @@ exports.trackClick = async (req, res) => {
     }
 };
 
+exports.trackVisit = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { source, referrer } = req.body;
+
+        await db.collection('bio_visits').add({
+            bioPageId: id,
+            source: source || 'direct',
+            referrer: referrer || '',
+            userAgent: req.get('User-Agent'),
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error tracking visit:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 exports.getAnalytics = async (req, res) => {
     try {
         const { id } = req.params;
@@ -277,22 +297,68 @@ exports.getAnalytics = async (req, res) => {
             };
         });
 
+        // Process history
         const historyRaw = {};
         clicks.forEach(click => {
             const date = click.timestamp.toDate().toISOString().split('T')[0];
-            historyRaw[date] = (historyRaw[date] || 0) + 1;
+            if (!historyRaw[date]) historyRaw[date] = { date, count: 0, visitCount: 0 };
+            historyRaw[date].count++;
         });
 
-        const history = Object.keys(historyRaw).map(date => ({
-            date,
-            count: historyRaw[date]
-        })).sort((a, b) => a.date.localeCompare(b.date));
+        // Get visits data
+        const visitsSnapshot = await db.collection('bio_visits')
+            .where('bioPageId', '==', id)
+            .where('timestamp', '>=', startDate)
+            .get();
+
+        const visits = visitsSnapshot.docs.map(doc => doc.data());
+
+        visits.forEach(visit => {
+            const date = visit.timestamp.toDate().toISOString().split('T')[0];
+            if (!historyRaw[date]) historyRaw[date] = { date, count: 0, visitCount: 0 };
+            historyRaw[date].visitCount++;
+        });
+
+        const history = Object.values(historyRaw).sort((a, b) => a.date.localeCompare(b.date));
+
+        // Process clicks into heatmap for Pro/Growth users
+        let heatmap = [];
+        if (req.user && (req.user.plan === 'pro' || req.user.plan === 'growth')) {
+            const heatmapRaw = {};
+            clicks.forEach(click => {
+                const dateObj = click.timestamp.toDate();
+                const day = dateObj.getDay(); // 0 (Sun) to 6 (Sat)
+                const hour = dateObj.getHours(); // 0 to 23
+                const key = `${day}-${hour}`;
+                if (!heatmapRaw[key]) {
+                    heatmapRaw[key] = { day, hour, count: 0 };
+                }
+                heatmapRaw[key].count++;
+            });
+            heatmap = Object.values(heatmapRaw);
+        }
+
+        const sourceStats = {};
+        visits.forEach(visit => {
+            const src = visit.source || 'direct';
+            sourceStats[src] = (sourceStats[src] || 0) + 1;
+        });
+
+        const totalBySource = Object.keys(sourceStats).map(source => ({
+            source,
+            count: sourceStats[source]
+        })).sort((a, b) => b.count - a.count);
 
         res.json({
             today: clicks.filter(c => c.timestamp.toDate() >= new Date(new Date().setHours(0, 0, 0, 0))).length,
+            todayVisits: visits.filter(v => v.timestamp.toDate() >= new Date(new Date().setHours(0, 0, 0, 0))).length,
             week: clicks.filter(c => c.timestamp.toDate() >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)).length,
+            weekVisits: visits.filter(v => v.timestamp.toDate() >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)).length,
             month: clicks.length,
+            monthVisits: visits.length,
             totalByLink,
+            totalBySource,
+            heatmap,
             history
         });
     } catch (error) {
@@ -331,5 +397,15 @@ exports.verifyLinkPassword = async (req, res) => {
     } catch (error) {
         console.error('Error verifying link password:', error);
         res.status(500).json({ message: 'Server error' });
+    }
+};
+exports.getAllSlugs = async (req, res) => {
+    try {
+        const snapshot = await db.collection('bio_pages').select('slug').get();
+        const slugs = snapshot.docs.map(doc => doc.data().slug);
+        res.json(slugs);
+    } catch (error) {
+        console.error('Error fetching all slugs:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };

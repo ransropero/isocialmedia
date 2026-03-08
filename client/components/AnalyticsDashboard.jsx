@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { getBioAnalytics, getMyBioPages } from '@/services/api';
 import {
     BarChart3, TrendingUp, Calendar, MousePointer2, Loader2,
-    AlertCircle, RefreshCw, Clock, PieChart, ChevronDown, Layers
+    AlertCircle, RefreshCw, Clock, PieChart, ChevronDown, Layers,
+    Eye, Share2, Smartphone, Globe, Instagram, Facebook, MessageCircle
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -120,6 +121,32 @@ export default function AnalyticsDashboard() {
 
     const currentPage = bioPages.find(p => p.id === bioPageId);
 
+    const buildHeatmapGrid = () => {
+        const grid = [];
+        const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        for (let day = 0; day < 7; day++) {
+            const row = { day: days[day], hours: [] };
+            for (let hour = 0; hour < 24; hour++) {
+                row.hours.push(0);
+            }
+            grid.push(row);
+        }
+
+        let maxCount = 0;
+        if (analytics?.heatmap) {
+            analytics.heatmap.forEach(item => {
+                if (grid[item.day]) {
+                    grid[item.day].hours[item.hour] = item.count;
+                    if (item.count > maxCount) maxCount = item.count;
+                }
+            });
+        }
+
+        return { grid, maxCount };
+    };
+
+    const heatmapData = buildHeatmapGrid();
+
     return (
         <div className="space-y-8 animate-fade-in-up">
             {/* Page Selector & Range Filter */}
@@ -184,8 +211,8 @@ export default function AnalyticsDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
                     { label: 'Cliques Hoje', value: analytics?.today || 0, icon: MousePointer2, color: 'text-blue-500', bg: 'bg-blue-50/50 dark:bg-blue-500/10' },
-                    { label: 'Últimos 7 Dias', value: analytics?.week || 0, icon: Calendar, color: 'text-indigo-500', bg: 'bg-indigo-50/50 dark:bg-indigo-500/10' },
-                    { label: 'Últimos 30 Dias', value: analytics?.month || 0, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50/50 dark:bg-emerald-500/10' }
+                    { label: 'Visitas Hoje', value: analytics?.todayVisits || 0, icon: Eye, color: 'text-indigo-500', bg: 'bg-indigo-50/50 dark:bg-indigo-500/10' },
+                    { label: `Visitas (${range === 'day' ? 'Hoje' : range === 'week' ? '7D' : range === 'month' ? '30D' : 'Ano'})`, value: analytics?.monthVisits || 0, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50/50 dark:bg-emerald-500/10' }
                 ].map((stat, i) => (
                     <div key={i} className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
                         <div className={`absolute top-0 right-0 w-24 h-24 ${stat.bg} rounded-bl-full -mr-8 -mt-8 opacity-50 transition-transform group-hover:scale-110`}></div>
@@ -205,10 +232,15 @@ export default function AnalyticsDashboard() {
             {/* Main Interactive Chart */}
             <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <div className="flex justify-between items-center mb-10">
-                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Histórico de Visualizações</h3>
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                        <div className="w-3 h-3 bg-indigo-500 rounded-sm"></div>
-                        Cliques
+                    <div className="flex items-center gap-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 bg-indigo-500 rounded-sm"></div>
+                            Cliques
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 bg-emerald-500 rounded-sm"></div>
+                            Visitas
+                        </div>
                     </div>
                 </div>
 
@@ -260,6 +292,17 @@ export default function AnalyticsDashboard() {
                                 fillOpacity={1}
                                 fill="url(#colorCount)"
                                 animationDuration={1500}
+                                name="Cliques"
+                            />
+                            <Area
+                                type="monotone"
+                                dataKey="visitCount"
+                                stroke="#10b981"
+                                strokeWidth={3}
+                                fillOpacity={0.1}
+                                fill="#10b981"
+                                animationDuration={1500}
+                                name="Visitas"
                             />
                         </AreaChart>
                     </ResponsiveContainer>
@@ -364,62 +407,201 @@ export default function AnalyticsDashboard() {
                     </div>
                 </div>
 
-                {/* Table Breakdown */}
-                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                        <h3 className="font-bold text-zinc-900 dark:text-zinc-50">Distribuição Detalhada</h3>
-                        <span className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-2 py-1 rounded-full font-black uppercase tracking-tighter">
-                            Total: {analytics?.totalByLink?.reduce((sum, item) => sum + parseInt(item.count), 0)}
-                        </span>
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Fontes de Tráfego</h3>
+                        <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400">
+                            <Share2 className="w-5 h-5" />
+                        </div>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-zinc-50 dark:bg-zinc-800/30 text-zinc-400 font-bold uppercase text-[10px] tracking-widest">
-                                <tr>
-                                    <th className="px-6 py-4 text-left">Link</th>
-                                    <th className="px-6 py-4 text-center">Cliques</th>
-                                    <th className="px-6 py-4 text-right">Impacto</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                {analytics?.totalByLink?.map((link, i) => {
-                                    const total = analytics.totalByLink.reduce((sum, item) => sum + parseInt(item.count), 0);
-                                    const percent = total > 0 ? ((parseInt(link.count) / total) * 100).toFixed(1) : 0;
-                                    return (
-                                        <tr key={i} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors group">
-                                            <td className="px-6 py-4 font-bold text-zinc-700 dark:text-zinc-300">
-                                                {link.title || `Link #${parseInt(link.linkIndex) + 1}`}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <span className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-lg font-black">{link.count}</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-3 text-xs font-mono font-bold">
-                                                    <div className="w-20 h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full transition-all duration-1000 ease-out"
-                                                            style={{
-                                                                width: `${percent}%`,
-                                                                backgroundColor: COLORS[i % COLORS.length]
-                                                            }}
-                                                        ></div>
-                                                    </div>
-                                                    <span className="text-zinc-500 dark:text-zinc-400">{percent}%</span>
+                    <div className="space-y-6">
+                        {analytics?.totalBySource?.map((src, i) => {
+                            const total = analytics.totalBySource.reduce((sum, item) => sum + item.count, 0);
+                            const percent = total > 0 ? ((src.count / total) * 100).toFixed(1) : 0;
+
+                            const getSourceIcon = (source) => {
+                                switch (source.toLowerCase()) {
+                                    case 'instagram': return <Instagram className="w-4 h-4 text-pink-500" />;
+                                    case 'facebook': return <Facebook className="w-4 h-4 text-blue-600" />;
+                                    case 'whatsapp': return <MessageCircle className="w-4 h-4 text-emerald-500" />;
+                                    case 'direct': return <Smartphone className="w-4 h-4 text-zinc-400" />;
+                                    case 'google': return <Globe className="w-4 h-4 text-blue-400" />;
+                                    default: return <Share2 className="w-4 h-4 text-zinc-400" />;
+                                }
+                            };
+
+                            return (
+                                <div key={i} className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm font-bold">
+                                        <div className="flex items-center gap-2 capitalize">
+                                            {getSourceIcon(src.source)}
+                                            <span className="text-zinc-600 dark:text-zinc-300">{src.source}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-zinc-400">{src.count} visitas</span>
+                                            <span className="text-zinc-900 dark:text-zinc-50">{percent}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-emerald-500 transition-all duration-1000"
+                                            style={{ width: `${percent}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {(!analytics?.totalBySource || analytics.totalBySource.length === 0) && (
+                            <div className="text-center py-12 text-zinc-400 italic text-sm">
+                                Nenhuma fonte detectada ainda.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Heatmap Section */}
+            <div className={`bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden mb-6 relative`}>
+                <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-50">Horários de Maior Movimento</h3>
+                    <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400">
+                        <Clock className="w-5 h-5" />
+                    </div>
+                </div>
+
+                <div className="p-6 overflow-x-auto relative">
+                    {(userPlan === 'start') && (
+                        <div className="absolute inset-0 z-10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                            <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-700 text-center max-w-sm mx-4">
+                                <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Clock className="w-6 h-6" />
+                                </div>
+                                <h4 className="text-lg font-black mb-2 text-zinc-900 dark:text-zinc-50">Recurso Premium</h4>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 font-medium">Veja quais os melhores horários para postar com o mapa de calor de cliques.</p>
+                                <button
+                                    onClick={() => window.location.href = '/pricing'}
+                                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex justify-center items-center gap-2"
+                                >
+                                    Fazer Upgrade
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="min-w-[700px]">
+                        <div className="flex mb-2">
+                            <div className="w-12 shrink-0"></div>
+                            <div className="flex-1 flex justify-between text-[10px] font-bold text-zinc-400">
+                                {[0, 3, 6, 9, 12, 15, 18, 21, 24].map(h => (
+                                    <span key={h} className="w-8 text-center" style={{ transform: 'translateX(-50%)' }}>
+                                        {h === 24 ? '0h' : `${h}h`}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            {heatmapData.grid.map((row, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                    <div className="w-10 shrink-0 text-[10px] font-bold text-zinc-500 text-right uppercase tracking-wider">{row.day}</div>
+                                    <div className="flex-1 flex gap-1">
+                                        {row.hours.map((count, j) => {
+                                            const intensity = count > 0 && heatmapData.maxCount > 0
+                                                ? Math.ceil((count / heatmapData.maxCount) * 5) // 1 to 5
+                                                : 0;
+
+                                            const bgColors = [
+                                                'bg-zinc-100 dark:bg-zinc-800/50', // 0
+                                                'bg-indigo-100 dark:bg-indigo-900/30', // 1
+                                                'bg-indigo-300 dark:bg-indigo-700/50', // 2
+                                                'bg-indigo-400 dark:bg-indigo-600', // 3
+                                                'bg-indigo-500 dark:bg-indigo-500', // 4
+                                                'bg-indigo-600 dark:bg-indigo-400'  // 5
+                                            ];
+
+                                            return (
+                                                <div
+                                                    key={j}
+                                                    title={`${count} cliques às ${j}h no(a) ${row.day}`}
+                                                    className={`h-4 flex-1 rounded-sm ${bgColors[intensity]} transition-colors hover:ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-zinc-900 cursor-help`}
+                                                ></div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 flex items-center justify-end gap-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                            <span>Menos</span>
+                            <div className="flex gap-1">
+                                <div className="w-4 h-4 rounded-sm bg-zinc-100 dark:bg-zinc-800/50"></div>
+                                <div className="w-4 h-4 rounded-sm bg-indigo-100 dark:bg-indigo-900/30"></div>
+                                <div className="w-4 h-4 rounded-sm bg-indigo-300 dark:bg-indigo-700/50"></div>
+                                <div className="w-4 h-4 rounded-sm bg-indigo-400 dark:bg-indigo-600"></div>
+                                <div className="w-4 h-4 rounded-sm bg-indigo-500 dark:bg-indigo-500"></div>
+                                <div className="w-4 h-4 rounded-sm bg-indigo-600 dark:bg-indigo-400"></div>
+                            </div>
+                            <span>Mais</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Table Breakdown */}
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-50">Distribuição Detalhada</h3>
+                    <span className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-2 py-1 rounded-full font-black uppercase tracking-tighter">
+                        Total: {analytics?.totalByLink?.reduce((sum, item) => sum + parseInt(item.count), 0)}
+                    </span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-zinc-50 dark:bg-zinc-800/30 text-zinc-400 font-bold uppercase text-[10px] tracking-widest">
+                            <tr>
+                                <th className="px-6 py-4 text-left">Link</th>
+                                <th className="px-6 py-4 text-center">Cliques</th>
+                                <th className="px-6 py-4 text-right">Impacto</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            {analytics?.totalByLink?.map((link, i) => {
+                                const total = analytics.totalByLink.reduce((sum, item) => sum + parseInt(item.count), 0);
+                                const percent = total > 0 ? ((parseInt(link.count) / total) * 100).toFixed(1) : 0;
+                                return (
+                                    <tr key={i} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors group">
+                                        <td className="px-6 py-4 font-bold text-zinc-700 dark:text-zinc-300">
+                                            {link.title || `Link #${parseInt(link.linkIndex) + 1}`}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-lg font-black">{link.count}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-3 text-xs font-mono font-bold">
+                                                <div className="w-20 h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full transition-all duration-1000 ease-out"
+                                                        style={{
+                                                            width: `${percent}%`,
+                                                            backgroundColor: COLORS[i % COLORS.length]
+                                                        }}
+                                                    ></div>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                                {(!analytics?.totalByLink || analytics.totalByLink.length === 0) && (
-                                    <tr>
-                                        <td colSpan="3" className="px-6 py-12 text-center text-zinc-400 italic">
-                                            Nenhum clique registrado neste período.
+                                                <span className="text-zinc-500 dark:text-zinc-400">{percent}%</span>
+                                            </div>
                                         </td>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                );
+                            })}
+                            {(!analytics?.totalByLink || analytics.totalByLink.length === 0) && (
+                                <tr>
+                                    <td colSpan="3" className="px-6 py-12 text-center text-zinc-400 italic">
+                                        Nenhum clique registrado neste período.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

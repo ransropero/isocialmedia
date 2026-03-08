@@ -27,8 +27,11 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Public lookup
+router.get('/all-slugs', bioController.getAllSlugs);
 router.get('/slug/:slug', bioController.getBioPageBySlug);
+
 router.post('/:id/click', bioController.trackClick);
+router.post('/:id/visit', bioController.trackVisit);
 router.post('/:id/verify-password', bioController.verifyLinkPassword);
 
 // User protected routes
