@@ -61,14 +61,13 @@ export const metadata = {
     },
   },
   verification: {
-    google: "process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION", // Placeholder para o usuário preencher no .env
-  },
-  alternates: {
-    canonical: '/',
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
   },
 };
 
 
+import { Suspense } from 'react';
+import SiteTracker from "@/components/SiteTracker";
 import CommercialHeader from "@/components/CommercialHeader";
 
 export default function RootLayout({ children }) {
@@ -79,7 +78,11 @@ export default function RootLayout({ children }) {
       >
         <div className="min-h-screen flex flex-col">
           <CommercialHeader />
-          {children}
+          <Suspense fallback={null}>
+            <SiteTracker>
+              {children}
+            </SiteTracker>
+          </Suspense>
         </div>
       </body>
     </html>

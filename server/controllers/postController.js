@@ -1,5 +1,5 @@
 const { db, admin } = require('../config/firebase');
-const { uploadToSupabase } = require('../services/storage');
+const { uploadToR2 } = require('../services/storage');
 
 exports.createPost = async (req, res) => {
     try {
@@ -9,7 +9,7 @@ exports.createPost = async (req, res) => {
             return res.status(400).json({ error: 'Image is required' });
         }
 
-        const imageUrl = await uploadToSupabase(req.file);
+        const imageUrl = await uploadToR2(req.file);
 
         let recurrenceGroupId = null;
         let recurrenceCurrent = 1;

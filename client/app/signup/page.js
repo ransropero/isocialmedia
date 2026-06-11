@@ -1,10 +1,10 @@
 'use client';
 
-import Login from '@/components/Login';
+import Signup from '@/components/Signup';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function LoginPage() {
+export default function SignupPage() {
     const router = useRouter();
 
     useEffect(() => {
@@ -15,6 +15,5 @@ export default function LoginPage() {
         }
     }, [router]);
 
-    return <Login onLogin={() => router.push('/dashboard')} />;
+    return <Signup onSignup={() => router.push('/dashboard')} />;
 }
-

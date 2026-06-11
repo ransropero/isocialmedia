@@ -9,3 +9,8 @@ uploads/
 coverage
 server/firebase-service-account.json
 *.env.*
+server/.wwebjs_auth/
+server/.wwebjs_cache/
+server/.whatsapp_auth/
+server/database.sqlite.bak
+.agents/

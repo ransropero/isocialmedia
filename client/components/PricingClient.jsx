@@ -120,7 +120,7 @@ export default function PricingClient() {
 
                             <div className="space-y-3">
                                 <Link
-                                    href="/login"
+                                    href="/signup"
                                     className={`block w-full py-4 rounded-2xl text-center font-black text-sm transition-all ${plan.highlight
                                         ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20'
                                         : 'bg-zinc-900 dark:bg-white text-white dark:text-black hover:opacity-90'
@@ -136,34 +136,6 @@ export default function PricingClient() {
                     ))}
                 </div>
 
-                <div className="mt-24 text-center p-12 bg-zinc-900 rounded-[40px] text-white overflow-hidden relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-purple-600/20"></div>
-                    <div className="relative z-10">
-                        <h2 className="text-3xl font-black mb-4">Precisa de ajuda para decidir?</h2>
-                        <p className="opacity-80 mb-8 max-w-xl mx-auto font-medium">
-                            Converse com nosso time e descubra qual plano faz mais sentido para o seu perfil ou negócio.
-                        </p>
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <a
-                                href="https://api.whatsapp.com/send/?phone=5511974501991&text=Olá! Preciso de uma recomendação. Qual plano do iSocialMedia faz mais sentido para o meu perfil?&type=phone_number&app_absent=0"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-block bg-white text-black px-12 py-5 rounded-2xl font-black hover:scale-105 transition-transform shadow-2xl"
-                            >
-                                Receber recomendação
-                            </a>
-                            <a
-                                href="https://www.instagram.com/isocial.media/"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 bg-zinc-800 text-white px-12 py-5 rounded-2xl font-black hover:scale-105 transition-transform shadow-2xl border border-white/10"
-                            >
-                                <Instagram className="w-5 h-5 text-pink-500" />
-                                Nossa rede
-                            </a>
-                        </div>
-                    </div>
-                </div>
             </main>
         </div>
     );

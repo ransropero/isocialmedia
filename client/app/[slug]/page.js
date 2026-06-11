@@ -2,18 +2,43 @@ import BioPageClient from './BioPageClient';
 
 async function getBioPage(slug) {
     const url = `http://127.0.0.1:5001/api/bio/slug/${slug}`;
+    const maxRetries = 4;
+    let delay = 1000;
 
-    try {
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) return null;
-        const response = await res.json();
-        // The API returns either { id, slug ... } OR { status, data: { ... } }
-        // Based on curl, it returns the object directly.
-        return response.slug ? response : response.data;
-    } catch (error) {
-        return null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`[getBioPage] Tentativa ${attempt} de buscar slug: ${slug}`);
+            const res = await fetch(url, { cache: 'no-store' });
+            
+            if (res.ok) {
+                const response = await res.json();
+                return response.slug ? response : response.data;
+            }
+            
+            // Se retornar 404 real do Express (slug não encontrado no banco de dados),
+            // não adianta tentar novamente. Retorna null imediatamente.
+            if (res.status === 404) {
+                console.log(`[getBioPage] Página não encontrada (404) para o slug: ${slug}`);
+                return null;
+            }
+
+            console.warn(`[getBioPage] Resposta não-ok (status ${res.status}) na tentativa ${attempt}.`);
+            if (attempt === maxRetries) return null;
+            
+        } catch (error) {
+            console.error(`[getBioPage] Erro de rede/conexão na tentativa ${attempt} para o slug: ${slug}:`, error.message);
+            if (attempt === maxRetries) return null;
+        }
+
+        // Aguarda antes da próxima tentativa com backoff simples
+        console.log(`[getBioPage] Aguardando ${delay}ms antes da tentativa ${attempt + 1}...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay += 500;
     }
+
+    return null;
 }
+
 
 export async function generateMetadata({ params }) {
     const { slug } = await params;
@@ -48,6 +73,9 @@ export async function generateMetadata({ params }) {
             title: page.title || `@${slug}`,
             description: page.description || 'Confira meus links e redes sociais.',
             images: profileImg ? [profileImg] : [],
+        },
+        alternates: {
+            canonical: `/${slug}`,
         },
     };
 }

@@ -28,6 +28,15 @@ export default function DashboardPage() {
                 localStorage.setItem('user', JSON.stringify(userData));
             } catch (e) {
                 console.error('Auth refresh failed', e);
+                
+                // If it's a 401, the token is definitely invalid
+                if (e.response?.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    router.push('/login');
+                    return;
+                }
+
                 const storedUser = localStorage.getItem('user');
                 if (storedUser) {
                     setUser(JSON.parse(storedUser));
@@ -66,7 +75,7 @@ export default function DashboardPage() {
                 onShowPlans={() => setShowPlans(true)}
             />
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <Dashboard onShowPlans={() => setShowPlans(true)} />
+                <Dashboard user={user} onShowPlans={() => setShowPlans(true)} />
             </main>
 
             <PlansModal

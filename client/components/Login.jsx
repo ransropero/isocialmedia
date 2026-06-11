@@ -1,43 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Mail, Lock, ArrowRight, Loader2, CheckCircle2, LayoutTemplate, User, Calendar, ShieldCheck } from 'lucide-react';
-import { login, register } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { Mail, Lock, ArrowRight, Loader2, LayoutTemplate } from 'lucide-react';
+import { login } from '../services/api';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 const Login = ({ onLogin }) => {
-    const [isLogin, setIsLogin] = useState(true);
+    const searchParams = useSearchParams();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
-    const [birthDate, setBirthDate] = useState('');
-    const [cpf, setCpf] = useState('');
-    const [optIn, setOptIn] = useState(true);
     const [error, setError] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const urlError = searchParams.get('error');
+        if (urlError) {
+            setError(urlError);
+        }
+    }, [searchParams]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        setSuccessMsg('');
         setLoading(true);
 
         try {
-            if (isLogin) {
-                const data = await login(email, password);
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify({ id: data.id, email: data.email, isAdmin: data.isAdmin }));
-                if (onLogin) onLogin(data);
-            } else {
-                await register(email, password, fullName, birthDate, cpf, optIn);
-                setIsLogin(true);
-                setSuccessMsg('Conta criada com sucesso! Você já pode fazer login e começar.');
-                setEmail('');
-                setPassword('');
-                setFullName('');
-                setBirthDate('');
-                setCpf('');
-            }
+            const data = await login(email, password);
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify({ id: data.id, email: data.email, isAdmin: data.isAdmin }));
+            if (onLogin) onLogin(data);
         } catch (err) {
             const apiError = err.response?.data;
             setError(apiError?.message || 'Ocorreu um erro.');
@@ -81,14 +73,14 @@ const Login = ({ onLogin }) => {
             </div>
 
             {/* Right Side - Form Panel */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12 relative">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12 relative pt-24 lg:pt-32">
                 <div className="w-full max-w-[400px] space-y-8">
                     <div className="space-y-2 text-center lg:text-left">
                         <h2 className="text-3xl font-bold tracking-tight text-foreground">
-                            {isLogin ? 'Que bom te ver por aqui!' : 'Criar nova conta'}
+                            Que bom te ver por aqui!
                         </h2>
                         <p className="text-sm text-zinc-500">
-                            {isLogin ? 'Acesse sua conta para continuar.' : 'Preencha os dados abaixo para começar gratuitamente.'}
+                            Acesse sua conta para continuar.
                         </p>
                     </div>
 
@@ -100,63 +92,7 @@ const Login = ({ onLogin }) => {
                             </div>
                         )}
 
-                        {successMsg && (
-                            <div className="p-4 bg-green-500/10 border border-green-500/20 text-green-600 rounded-xl text-sm font-medium flex items-center gap-3">
-                                <CheckCircle2 className="w-4 h-4" />
-                                {successMsg}
-                            </div>
-                        )}
-
                         <div className="space-y-4">
-                            {!isLogin && (
-                                <>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Nome Completo</label>
-                                        <div className="relative group">
-                                            <User className="absolute left-3 top-3 h-5 w-5 text-zinc-400 group-focus-within:text-indigo-600 transition-colors" />
-                                            <input
-                                                type="text"
-                                                placeholder="Seu nome completo"
-                                                value={fullName}
-                                                onChange={(e) => setFullName(e.target.value)}
-                                                className="w-full pl-10 pr-4 py-3 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm font-medium"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Nascimento</label>
-                                            <div className="relative group">
-                                                <Calendar className="absolute left-3 top-3 h-5 w-5 text-zinc-400 group-focus-within:text-indigo-600 transition-colors" />
-                                                <input
-                                                    type="date"
-                                                    value={birthDate}
-                                                    onChange={(e) => setBirthDate(e.target.value)}
-                                                    className="w-full pl-10 pr-4 py-3 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm font-medium"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">CPF</label>
-                                            <div className="relative group">
-                                                <ShieldCheck className="absolute left-3 top-3 h-5 w-5 text-zinc-400 group-focus-within:text-indigo-600 transition-colors" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="000.000.000-00"
-                                                    value={cpf}
-                                                    onChange={(e) => setCpf(e.target.value)}
-                                                    className="w-full pl-10 pr-4 py-3 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm font-medium"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
                                 <div className="relative group">
@@ -186,23 +122,6 @@ const Login = ({ onLogin }) => {
                                     />
                                 </div>
                             </div>
-
-                            {!isLogin && (
-                                <div className="flex items-start gap-3 pt-2">
-                                    <div className="flex items-center h-5">
-                                        <input
-                                            id="optIn"
-                                            type="checkbox"
-                                            checked={optIn}
-                                            onChange={(e) => setOptIn(e.target.checked)}
-                                            className="w-4 h-4 text-indigo-600 border-zinc-300 rounded focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900"
-                                        />
-                                    </div>
-                                    <label htmlFor="optIn" className="text-xs text-zinc-500 leading-normal select-none cursor-pointer">
-                                        Desejo receber novidades e importantes atualizações sobre a plataforma e concordo com os termos de uso.
-                                    </label>
-                                </div>
-                            )}
                         </div>
 
                         <button
@@ -212,20 +131,61 @@ const Login = ({ onLogin }) => {
                         >
                             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                                 <>
-                                    {isLogin ? 'Entrar na Plataforma' : 'Criar Conta'}
+                                    Entrar na Plataforma
                                     <ArrowRight className="w-4 h-4" />
                                 </>
                             )}
                         </button>
                     </form>
 
+
+
+                    <div className="relative py-4">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-zinc-200 dark:border-zinc-800"></span>
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-background px-2 text-zinc-500">Ou continue com</span>
+                        </div>
+                    </div>
+
+                    <div className={`grid ${process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true' && process.env.NEXT_PUBLIC_ENABLE_FACEBOOK_AUTH === 'true' ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                        {process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true' && (
+                            <button
+                                type="button"
+                                onClick={() => window.location.href = '/api/auth/google'}
+                                className="flex items-center justify-center gap-2 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all text-sm font-medium"
+                            >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                </svg>
+                                Google
+                            </button>
+                        )}
+                        {process.env.NEXT_PUBLIC_ENABLE_FACEBOOK_AUTH === 'true' && (
+                            <button
+                                type="button"
+                                onClick={() => window.location.href = '/api/auth/facebook'}
+                                className="flex items-center justify-center gap-2 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all text-sm font-medium"
+                            >
+                                <svg className="w-4 h-4 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                </svg>
+                                Facebook
+                            </button>
+                        )}
+                    </div>
+
                     <div className="text-center pt-4">
-                        <button
-                            onClick={() => { setIsLogin(!isLogin); setError(''); setSuccessMsg(''); }}
+                        <Link
+                            href="/signup"
                             className="text-sm text-zinc-500 hover:text-indigo-600 font-medium transition-colors"
                         >
-                            {isLogin ? 'Ainda não tem uma conta? Crie gratuitamente.' : 'Já tem conta? Faça LOGIN'}
-                        </button>
+                            Ainda não tem uma conta? Crie gratuitamente.
+                        </Link>
                     </div>
                 </div>
 

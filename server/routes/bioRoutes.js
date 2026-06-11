@@ -40,6 +40,7 @@ router.get('/:id/analytics', authMiddleware, bioController.getAnalytics);
 router.post('/', authMiddleware, bioController.createBioPage);
 router.put('/:id', authMiddleware, bioController.updateBioPage);
 router.delete('/:id', authMiddleware, bioController.deleteBioPage);
+router.post('/import-linktree', authMiddleware, bioController.importLinktree);
 router.post('/upload', authMiddleware, upload.single('image'), bioController.uploadImage);
 
 module.exports = router;

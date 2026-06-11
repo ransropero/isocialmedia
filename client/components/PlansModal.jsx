@@ -42,7 +42,7 @@ export default function PlansModal({ isOpen, onClose }) {
     ];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-6 animate-in fade-in duration-300">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose}></div>
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[32px] w-full max-w-[800px] overflow-hidden relative z-10 animate-in zoom-in-95 duration-300 shadow-2xl">
 

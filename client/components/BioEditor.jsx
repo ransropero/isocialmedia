@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMyBioPages, createBioPage, updateBioPage, deleteBioPage, uploadBioImage } from '@/services/api';
+import { getMyBioPages, createBioPage, updateBioPage, deleteBioPage, uploadBioImage, importLinktree as importLinktreeApi } from '@/services/api';
 import {
     Plus, Trash2, ExternalLink, Image as ImageIcon, Loader2,
     Save, Link as LinkIcon, Smartphone, Palette, Layout,
@@ -66,6 +66,7 @@ export default function BioEditor({ onShowPlans }) {
     const [showNewPageForm, setShowNewPageForm] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     // Form state
     const [slug, setSlug] = useState('');
@@ -91,9 +92,12 @@ export default function BioEditor({ onShowPlans }) {
     const [fontFamily, setFontFamily] = useState('Inter');
     const [profileImageUrl, setProfileImageUrl] = useState('');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
+    const [profileStyle, setProfileStyle] = useState('instagram');
     const [backgroundImages, setBackgroundImages] = useState([]);
     const [showLogo, setShowLogo] = useState(true);
     const [userPlan, setUserPlan] = useState('trial');
+    const [linktreeUrl, setLinktreeUrl] = useState('');
+    const [importing, setImporting] = useState(false);
 
     const fonts = [
         { name: 'Inter', family: "'Inter', sans-serif" },
@@ -186,6 +190,7 @@ export default function BioEditor({ onShowPlans }) {
         setFontFamily(page.fontFamily || 'Inter');
         setProfileImageUrl(page.profileImageUrl || '');
         setBackgroundImageUrl(page.backgroundImageUrl || '');
+        setProfileStyle(page.profileStyle || 'instagram');
         setBackgroundImages(page.backgroundImages || []);
         setShowLogo(page.showLogo !== undefined ? page.showLogo : true);
         setShowNewPageForm(false);
@@ -215,6 +220,7 @@ export default function BioEditor({ onShowPlans }) {
         setFontFamily('Inter');
         setProfileImageUrl('');
         setBackgroundImageUrl('');
+        setProfileStyle('instagram');
         setBackgroundImages([]);
         setShowLogo(true);
     };
@@ -236,6 +242,47 @@ export default function BioEditor({ onShowPlans }) {
     const handleSelectPage = (id) => {
         const page = bioPages.find(p => p.id === id);
         if (page) loadPageData(page);
+    };
+
+    const handleLinktreeImport = async () => {
+        if (!linktreeUrl || !linktreeUrl.includes('linktr.ee')) {
+            setError('Por favor, insira um URL válido do Linktree.');
+            return;
+        }
+
+        setImporting(true);
+        setError('');
+        try {
+            const response = await importLinktreeApi(linktreeUrl);
+            const data = response.data;
+
+            if (data.name) setTitle(data.name);
+            if (data.username) setSlug(data.username);
+            if (data.bio) setDescription(data.bio);
+            if (data.profileImageUrl) setProfileImageUrl(data.profileImageUrl);
+            if (data.links && data.links.length > 0) {
+                // Prepend imported links to current links, or replace if current is empty/default
+                const filteredLinks = data.links.map(l => ({
+                    ...l,
+                    scheduleStart: '',
+                    scheduleEnd: '',
+                    password: '',
+                    requireAge: false
+                }));
+
+                setLinks(prev => {
+                    const isDefault = prev.length === 1 && !prev[0].title && !prev[0].url;
+                    return isDefault ? filteredLinks : [...filteredLinks, ...prev];
+                });
+            }
+            setSuccess('Dados importados com sucesso do Linktree!');
+            setLinktreeUrl('');
+        } catch (err) {
+            console.error('Import error:', err);
+            setError(err.response?.data?.message || 'Falha ao importar do Linktree. Verifique o URL.');
+        } finally {
+            setImporting(false);
+        }
     };
 
     const handleAddLink = () => {
@@ -425,7 +472,8 @@ export default function BioEditor({ onShowPlans }) {
             slug,
             title,
             description,
-            links: links.filter(l => l.title && (l.url || l.type === 'message' || l.phone || l.address)),
+            links: links.filter(l => (l.title || l.image) && (l.url || l.type === 'message' || l.phone || l.address)),
+            profileStyle,
             backgroundColor,
             textColor,
             descriptionColor,
@@ -487,33 +535,71 @@ export default function BioEditor({ onShowPlans }) {
 
             {/* Left Panel: Page List and Editor */}
             <div className="lg:col-span-7 flex flex-col gap-6">
-                {/* Page Selection Bar */}
-                <div className="bg-white dark:bg-zinc-900 p-4 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar no-scrollbar py-1">
-                        {bioPages.map(page => (
+                {/* Page Selection Dropdown (Premium) */}
+                <div className="bg-white dark:bg-zinc-900 p-4 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between gap-4 z-20 relative">
+                    <div className="flex items-center gap-3 w-full sm:w-auto relative">
+                        <div className="relative w-full sm:w-80">
                             <button
-                                key={page.id}
-                                onClick={() => handleSelectPage(page.id)}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${selectedPageId === page.id
-                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20'
-                                    : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300'
-                                    }`}
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-2xl text-sm font-bold transition-all text-zinc-800 dark:text-zinc-200 cursor-pointer"
                             >
-                                {page.slug}
+                                <span className="flex items-center gap-2">
+                                    <Layers className="w-4 h-4 text-indigo-500" />
+                                    {selectedPageId ? (
+                                        <span>/{slug}</span>
+                                    ) : showNewPageForm ? (
+                                        <span className="text-emerald-500">Criando Nova Página...</span>
+                                    ) : (
+                                        <span className="text-zinc-400">Selecione uma Página</span>
+                                    )}
+                                </span>
+                                <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                             </button>
-                        ))}
+
+                            {isDropdownOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-20" onClick={() => setIsDropdownOpen(false)}></div>
+                                    <div className="absolute left-0 mt-2 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl z-30 overflow-hidden max-h-64 overflow-y-auto animate-fade-in-up">
+                                        <div className="p-1.5 space-y-1">
+                                            {bioPages.map(page => (
+                                                <button
+                                                    key={page.id}
+                                                    onClick={() => {
+                                                        handleSelectPage(page.id);
+                                                        setIsDropdownOpen(false);
+                                                    }}
+                                                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex flex-col gap-0.5 cursor-pointer ${selectedPageId === page.id
+                                                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold'
+                                                        : 'hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-750 dark:text-zinc-300'
+                                                        }`}
+                                                >
+                                                    <span className="font-bold text-sm">/{page.slug}</span>
+                                                    {page.title && <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate">{page.title}</span>}
+                                                    {page.userEmail && <span className="text-[9px] text-indigo-400 font-mono truncate">Dono: {page.userEmail}</span>}
+                                                </button>
+                                            ))}
+                                            {bioPages.length === 0 && (
+                                                <div className="p-4 text-center text-xs text-zinc-400 italic">Nenhuma página criada</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Nova Página Button */}
                         {(() => {
                             const pageLimits = { start: 1, trial: 1, growth: 1, pro: 5 };
                             const currentLimit = pageLimits[userPlan] || 1;
                             return (bioPages.length < currentLimit) && (
                                 <button
                                     onClick={handleNewPage}
-                                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border border-dashed ${showNewPageForm
+                                    className={`px-4 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 cursor-pointer ${showNewPageForm
                                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-500/20'
-                                        : 'bg-transparent text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:text-indigo-600 hover:border-indigo-400'
+                                        : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 hover:text-indigo-600'
                                         }`}
                                 >
-                                    <Plus className="w-3.5 h-3.5 inline mr-1" /> Nova Página
+                                    <Plus className="w-4 h-4" /> Nova Página
                                 </button>
                             );
                         })()}
@@ -593,6 +679,48 @@ export default function BioEditor({ onShowPlans }) {
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                                {/* Linktree Import Section */}
+                                <div className="p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-[32px] border border-indigo-100 dark:border-indigo-900/20 relative overflow-hidden group/import">
+                                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover/import:opacity-[0.07] transition-opacity pointer-events-none">
+                                        <LinkIcon className="w-32 h-32 rotate-12" />
+                                    </div>
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+                                                <Plus className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-50 tracking-tight">Importação Mágica</h3>
+                                                <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Traga seus dados do Linktree</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <div className="flex-1 relative">
+                                                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                                <input
+                                                    type="text"
+                                                    value={linktreeUrl}
+                                                    onChange={(e) => setLinktreeUrl(e.target.value)}
+                                                    placeholder="https://linktr.ee/seu-usuario"
+                                                    className="w-full pl-10 pr-4 py-3 bg-white dark:bg-zinc-800 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={handleLinktreeImport}
+                                                disabled={importing || !linktreeUrl}
+                                                className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-zinc-800 dark:hover:bg-white transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-xl shadow-zinc-900/10"
+                                            >
+                                                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                                Importar Agora
+                                            </button>
+                                        </div>
+                                        <p className="mt-3 text-[10px] text-zinc-500 font-medium">
+                                            * Iremos importar sua foto, biografia e todos os links ativos automaticamente.
+                                        </p>
+                                    </div>
+                                </div>
+
                                 {/* Basic Info Group */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider">
@@ -663,6 +791,19 @@ export default function BioEditor({ onShowPlans }) {
                                                     <span className="text-[9px] text-zinc-400">JPG, PNG (Máx 2MB)</span>
                                                     <input type="file" className="hidden" onChange={(e) => handleImageUpload(e, 'profile')} accept="image/*" />
                                                 </label>
+                                            </div>
+                                            <div className="space-y-1 mt-2">
+                                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Estilo da Foto</label>
+                                                <select
+                                                    value={profileStyle}
+                                                    onChange={(e) => setProfileStyle(e.target.value)}
+                                                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium cursor-pointer text-zinc-800 dark:text-zinc-200"
+                                                >
+                                                    <option value="instagram">Padrão Instagram</option>
+                                                    <option value="large-circle">Círculo Grande</option>
+                                                    <option value="large-square">Quadrado Arredondado</option>
+                                                    <option value="full-header">Banner Amplo Destaque</option>
+                                                </select>
                                             </div>
                                         </div>
 
@@ -908,12 +1049,13 @@ export default function BioEditor({ onShowPlans }) {
 
                                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                             <div className="space-y-3">
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={link.title}
+                                                                                <textarea
+                                                                                    value={link.title || ''}
                                                                                     onChange={(e) => handleLinkChange(index, 'title', e.target.value)}
-                                                                                    className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1.5 text-sm font-bold focus:outline-none focus:border-indigo-500 transition-colors text-zinc-900 dark:text-zinc-100"
-                                                                                    placeholder="Ex: Minha Loja"
+                                                                                    rows={1}
+                                                                                    className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 pb-1.5 text-sm font-bold focus:outline-none focus:border-indigo-500 transition-colors text-zinc-900 dark:text-zinc-100 resize-none overflow-hidden"
+                                                                                    placeholder={link.image ? "Ex: Minha Loja (Opcional)" : "Ex: Minha Loja"}
+                                                                                    onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
                                                                                 />
                                                                                 <div className="flex items-center gap-2 mb-3">
                                                                                     <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Tipo de Destino:</label>
@@ -1035,6 +1177,20 @@ export default function BioEditor({ onShowPlans }) {
                                                                                 </button>
                                                                             )}
                                                                         </div>
+                                                                        {link.image && (
+                                                                            <div className="space-y-1 mt-2">
+                                                                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Estilo da Imagem do Link</label>
+                                                                                <select
+                                                                                    value={link.imageStyle || 'thumbnail'}
+                                                                                    onChange={(e) => handleLinkChange(index, 'imageStyle', e.target.value)}
+                                                                                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer text-zinc-800 dark:text-zinc-200"
+                                                                                >
+                                                                                    <option value="thumbnail">Miniatura</option>
+                                                                                    <option value="large">Destaque Lateral</option>
+                                                                                    <option value="banner">Banner de Fundo</option>
+                                                                                </select>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
 
                                                                     <div className="bg-zinc-100/50 dark:bg-zinc-900/50 p-3 rounded-2xl space-y-2">
@@ -1151,6 +1307,7 @@ export default function BioEditor({ onShowPlans }) {
                                 buttonColor,
                                 fontFamily,
                                 profileImageUrl,
+                                profileStyle,
                                 backgroundImageUrl,
                                 backgroundImages,
                                 showLogo,

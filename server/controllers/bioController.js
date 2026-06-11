@@ -1,23 +1,39 @@
 const { db, admin } = require('../config/firebase');
-const { uploadToSupabase } = require('../services/storage');
+const { uploadToR2 } = require('../services/storage');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+const bioCache = new Map();
+const BIO_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 horas
 
 exports.getBioPageBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
-        const snapshot = await db.collection('bio_pages').where('slug', '==', slug).get();
+        const nowTime = Date.now();
+        const cached = bioCache.get(slug);
+        let bioPage, id, userPlan;
 
-        if (snapshot.empty) {
-            return res.status(404).json({ message: 'Page not found' });
+        if (cached && (nowTime - cached.timestamp < BIO_CACHE_TTL)) {
+            bioPage = cached.bioPage;
+            id = cached.id;
+            userPlan = cached.userPlan;
+        } else {
+            const snapshot = await db.collection('bio_pages').where('slug', '==', slug).get();
+            if (snapshot.empty) {
+                return res.status(404).json({ message: 'Page not found' });
+            }
+
+            bioPage = snapshot.docs[0].data();
+            id = snapshot.docs[0].id;
+
+            // Fetch owner's plan
+            const userDoc = await db.collection('users').doc(bioPage.userId).get();
+            userPlan = userDoc.exists ? userDoc.data().plan : 'start';
+
+            bioCache.set(slug, { bioPage, id, userPlan, timestamp: nowTime });
         }
 
-        const bioPage = snapshot.docs[0].data();
-        const id = snapshot.docs[0].id;
-
-        // Fetch owner's plan
-        const userDoc = await db.collection('users').doc(bioPage.userId).get();
-        const userPlan = userDoc.exists ? userDoc.data().plan : 'start';
-
-        // Filter links based on scheduling
+        // Filter links based on scheduling (done dynamically on every request to respect start/end times!)
         const now = new Date();
         const activeLinks = (bioPage.links || []).filter(link => {
             const start = link.scheduleStart ? new Date(link.scheduleStart) : null;
@@ -53,11 +69,28 @@ exports.getBioPageBySlug = async (req, res) => {
 
 exports.getMyBioPages = async (req, res) => {
     try {
-        const snapshot = await db.collection('bio_pages').where('userId', '==', req.user.id).get();
-        const bioPages = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+        let snapshot;
+        let usersMap = {};
+
+        if (req.user.isAdmin) {
+            snapshot = await db.collection('bio_pages').get();
+            // Fetch users to map emails
+            const usersSnapshot = await db.collection('users').get();
+            usersSnapshot.docs.forEach(doc => {
+                usersMap[doc.id] = doc.data().email;
+            });
+        } else {
+            snapshot = await db.collection('bio_pages').where('userId', '==', req.user.id).get();
+        }
+
+        const bioPages = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                userEmail: req.user.isAdmin ? (usersMap[data.userId] || 'Desconhecido') : undefined
+            };
+        });
         res.json(bioPages);
     } catch (error) {
         console.error('Error fetching user bio pages:', error);
@@ -67,7 +100,7 @@ exports.getMyBioPages = async (req, res) => {
 
 exports.createBioPage = async (req, res) => {
     try {
-        const { slug, title, description, backgroundColor, textColor, buttonColor, descriptionColor, buttonsTransparent, fontFamily, links, profileImageUrl, backgroundImageUrl, backgroundImages, showLogo } = req.body;
+        const { slug, title, description, backgroundColor, textColor, buttonColor, descriptionColor, buttonsTransparent, fontFamily, links, profileImageUrl, backgroundImageUrl, backgroundImages, showLogo, profileStyle } = req.body;
 
         // Check plan limits
         const user = req.user;
@@ -100,6 +133,7 @@ exports.createBioPage = async (req, res) => {
             fontFamily,
             profileImageUrl,
             backgroundImageUrl,
+            profileStyle: profileStyle || 'instagram',
             showLogo: user.plan === 'pro' ? showLogo : true,
             descriptionColor: (user.plan === 'pro' || user.plan === 'growth') ? (descriptionColor || textColor || '#ffffff') : (textColor || '#ffffff'),
             buttonsTransparent: (user.plan === 'pro' || user.plan === 'growth') ? (buttonsTransparent !== undefined ? buttonsTransparent : false) : false,
@@ -118,6 +152,7 @@ exports.createBioPage = async (req, res) => {
         };
 
         const docRef = await pagesRef.add(bioPageData);
+        bioCache.delete(slug);
 
         res.status(201).json({ id: docRef.id, ...bioPageData });
     } catch (error) {
@@ -143,6 +178,9 @@ exports.updateBioPage = async (req, res) => {
             return res.status(403).json({ message: 'Unauthorized' });
         }
 
+        if (currentData.slug) bioCache.delete(currentData.slug);
+        if (body.slug) bioCache.delete(body.slug);
+
         const updates = {
             slug: body.slug || currentData.slug,
             title: body.title !== undefined ? body.title : currentData.title,
@@ -156,6 +194,7 @@ exports.updateBioPage = async (req, res) => {
             backgroundImages: (req.user.plan === 'pro' || req.user.plan === 'growth') ? (body.backgroundImages !== undefined ? body.backgroundImages.slice(0, 5) : currentData.backgroundImages) : [],
             profileImageUrl: body.profileImageUrl !== undefined ? body.profileImageUrl : currentData.profileImageUrl,
             backgroundImageUrl: body.backgroundImageUrl !== undefined ? body.backgroundImageUrl : currentData.backgroundImageUrl,
+            profileStyle: body.profileStyle !== undefined ? body.profileStyle : currentData.profileStyle,
             links: body.links !== undefined ? body.links.map(link => {
                 if (req.user.plan !== 'pro') {
                     delete link.password;
@@ -166,6 +205,9 @@ exports.updateBioPage = async (req, res) => {
             socials: body.socials !== undefined ? body.socials : currentData.socials,
             showLogo: req.user.plan === 'pro' && body.showLogo !== undefined ? body.showLogo : (req.user.plan !== 'pro' ? true : currentData.showLogo)
         };
+
+        // Remove undefined values to prevent Firestore error
+        Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
 
         await docRef.update(updates);
         res.json({ id, ...updates });
@@ -189,6 +231,9 @@ exports.deleteBioPage = async (req, res) => {
             return res.status(403).json({ message: 'Unauthorized' });
         }
 
+        const currentData = doc.data();
+        if (currentData.slug) bioCache.delete(currentData.slug);
+
         await docRef.delete();
         res.status(204).send();
     } catch (error) {
@@ -203,7 +248,7 @@ exports.uploadImage = async (req, res) => {
             return res.status(400).json({ message: 'No file uploaded' });
         }
         const { slug } = req.body;
-        const publicUrl = await uploadToSupabase(req.file, slug);
+        const publicUrl = await uploadToR2(req.file, slug);
         res.json({ url: publicUrl });
     } catch (error) {
         console.error('Error uploading bio image:', error);
@@ -262,6 +307,10 @@ exports.getAnalytics = async (req, res) => {
             return res.status(404).json({ message: 'Page not found' });
         }
         const bioPage = doc.data();
+
+        if (bioPage.userId !== req.user.id && !req.user.isAdmin) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
 
         const now = new Date();
         let startDate;
@@ -407,5 +456,77 @@ exports.getAllSlugs = async (req, res) => {
     } catch (error) {
         console.error('Error fetching all slugs:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+exports.importLinktree = async (req, res) => {
+    try {
+        const { url } = req.body;
+        if (!url || !url.includes('linktr.ee')) {
+            return res.status(400).json({ message: 'URL do Linktree inválida.' });
+        }
+
+        const response = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+
+        const $ = cheerio.load(response.data);
+        const nextDataScript = $('#__NEXT_DATA__').html();
+
+        let profileData = {
+            name: '',
+            username: '',
+            bio: '',
+            profileImageUrl: '',
+            links: []
+        };
+
+        if (nextDataScript) {
+            try {
+                const jsonData = JSON.parse(nextDataScript);
+                const account = jsonData.props?.pageProps?.account || jsonData.props?.pageProps?.pageData;
+                
+                if (account) {
+                    profileData.name = account.profileTitle || account.username || '';
+                    profileData.username = account.username || '';
+                    profileData.bio = account.description || account.bio || '';
+                    profileData.profileImageUrl = account.profilePictureUrl || account.image || '';
+                    
+                    const rawLinks = account.links || [];
+                    profileData.links = rawLinks
+                        .filter(l => l.url && l.title)
+                        .map(l => ({
+                            title: l.title,
+                            url: l.url,
+                            type: 'url'
+                        }));
+                }
+            } catch (e) {
+                console.error('Error parsing __NEXT_DATA__:', e);
+            }
+        }
+
+        // Fallback to Meta Tags if __NEXT_DATA__ failed or was incomplete
+        if (!profileData.name) profileData.name = $('meta[property="og:title"]').attr('content')?.replace(' | Linktree', '') || '';
+        if (!profileData.bio) profileData.bio = $('meta[property="og:description"]').attr('content') || '';
+        if (!profileData.profileImageUrl) profileData.profileImageUrl = $('meta[property="og:image"]').attr('content') || '';
+        
+        if (profileData.links.length === 0) {
+            // Very basic fallback for links - might be noisy
+            $('a').each((i, el) => {
+                const href = $(el).attr('href');
+                const title = $(el).text().trim();
+                if (href && href.startsWith('http') && !href.includes('linktr.ee') && title) {
+                    profileData.links.push({ title, url: href, type: 'url' });
+                }
+            });
+        }
+
+        res.json(profileData);
+    } catch (error) {
+        console.error('Error importing Linktree:', error);
+        res.status(500).json({ message: 'Erro ao importar do Linktree.', error: error.message });
     }
 };

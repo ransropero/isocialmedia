@@ -5,8 +5,10 @@ import { getBioAnalytics, getMyBioPages } from '@/services/api';
 import {
     BarChart3, TrendingUp, Calendar, MousePointer2, Loader2,
     AlertCircle, RefreshCw, Clock, PieChart, ChevronDown, Layers,
-    Eye, Share2, Smartphone, Globe, Instagram, Facebook, MessageCircle
+    Eye, Share2, Smartphone, Globe, Instagram, Facebook, MessageCircle,
+    FileSpreadsheet, FileText
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, BarChart, Bar, Cell,
@@ -22,6 +24,7 @@ export default function AnalyticsDashboard() {
     const [range, setRange] = useState('month'); // day, week, month, year
     const [rankChartType, setRankChartType] = useState('bar'); // bar, pie
     const [userPlan, setUserPlan] = useState('start');
+    const [isAdmin, setIsAdmin] = useState(false);
     const [showUpgradeWarning, setShowUpgradeWarning] = useState(false);
 
     useEffect(() => {
@@ -30,7 +33,8 @@ export default function AnalyticsDashboard() {
             try {
                 const u = JSON.parse(storedUser);
                 setUserPlan(u.plan || 'start');
-                if (u.plan === 'start') {
+                setIsAdmin(!!u.isAdmin);
+                if (u.plan === 'start' && !u.isAdmin) {
                     setRange('day');
                 } else {
                     setRange('month');
@@ -81,12 +85,63 @@ export default function AnalyticsDashboard() {
     };
 
     const handleRangeChange = (newRange) => {
-        if (userPlan === 'start' && newRange !== 'day') {
+        if (userPlan === 'start' && !isAdmin && newRange !== 'day') {
             setShowUpgradeWarning(true);
             return;
         }
         setRange(newRange);
         if (bioPageId) fetchAnalytics(bioPageId, newRange);
+    };
+
+    const exportToExcel = () => {
+        if (!analytics) return;
+
+        // 1. Overview
+        const overviewData = [
+            { Métrica: 'Cliques Hoje', Valor: analytics.today || 0 },
+            { Métrica: 'Visitas Hoje', Valor: analytics.todayVisits || 0 },
+            { Métrica: 'Cliques (Período)', Valor: analytics.week || 0 },
+            { Métrica: 'Visitas (Período)', Valor: analytics.monthVisits || 0 }
+        ];
+
+        // 2. Links
+        const linksData = analytics.totalByLink?.map(link => ({
+            Link: link.title || `Link #${parseInt(link.linkIndex) + 1}`,
+            Cliques: link.count || 0
+        })) || [];
+
+        // 3. Traffic Sources
+        const sourcesData = analytics.totalBySource?.map(src => ({
+            Origem: src.source,
+            Visitas: src.count || 0
+        })) || [];
+
+        // 4. History
+        const historyData = analytics.history?.map(hist => ({
+            Data: hist.date,
+            Cliques: hist.count || 0,
+            Visitas: hist.visitCount || 0
+        })) || [];
+
+        const wb = XLSX.utils.book_new();
+
+        const wsOverview = XLSX.utils.json_to_sheet(overviewData);
+        XLSX.utils.book_append_sheet(wb, wsOverview, 'Resumo');
+
+        const wsLinks = XLSX.utils.json_to_sheet(linksData);
+        XLSX.utils.book_append_sheet(wb, wsLinks, 'Cliques por Link');
+
+        const wsSources = XLSX.utils.json_to_sheet(sourcesData);
+        XLSX.utils.book_append_sheet(wb, wsSources, 'Fontes de Tráfego');
+
+        const wsHistory = XLSX.utils.json_to_sheet(historyData);
+        XLSX.utils.book_append_sheet(wb, wsHistory, 'Histórico');
+
+        XLSX.writeFile(wb, `relatorio-bio-${currentPage?.slug || 'page'}-${range}.xlsx`);
+    };
+
+    const exportToPDF = () => {
+        window.print();
     };
 
     const formatXAxis = (tickItem) => {
@@ -148,9 +203,16 @@ export default function AnalyticsDashboard() {
     const heatmapData = buildHeatmapGrid();
 
     return (
-        <div className="space-y-8 animate-fade-in-up">
+        <div id="print-section" className="space-y-8 animate-fade-in-up">
+            {/* Print-only Header */}
+            <div className="hidden print:block mb-6 border-b border-zinc-200 pb-4">
+                <h1 className="text-2xl font-black text-zinc-950 uppercase tracking-tight">Relatório de Desempenho - Bio Link</h1>
+                <p className="text-sm text-zinc-500 font-bold">Página: /{currentPage?.slug} {currentPage?.userEmail ? `(${currentPage.userEmail})` : ''}</p>
+                <p className="text-xs text-zinc-400 font-medium">Período: {range === 'day' ? 'Hoje' : range === 'week' ? 'Últimos 7 dias' : range === 'month' ? 'Últimos 30 dias' : 'Ano atual'} | Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
+            </div>
+
             {/* Page Selector & Range Filter */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm no-print">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl text-indigo-600 dark:text-indigo-400">
                         <Layers className="w-6 h-6" />
@@ -164,7 +226,9 @@ export default function AnalyticsDashboard() {
                                 className="appearance-none bg-transparent pr-8 text-xl font-bold focus:outline-none cursor-pointer text-zinc-900 dark:text-zinc-50"
                             >
                                 {bioPages.map(page => (
-                                    <option key={page.id} value={page.id}>/{page.slug}</option>
+                                    <option key={page.id} value={page.id}>
+                                        /{page.slug} {page.userEmail ? `(${page.userEmail})` : ''}
+                                    </option>
                                 ))}
                             </select>
                             <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none group-hover:text-indigo-500 transition-colors" />
@@ -172,31 +236,55 @@ export default function AnalyticsDashboard() {
                     </div>
                 </div>
 
-                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-700 w-fit">
-                    {[
-                        { id: 'day', label: 'Hoje', icon: Clock },
-                        { id: 'week', label: '7D', icon: Calendar },
-                        { id: 'month', label: '30D', icon: TrendingUp },
-                        { id: 'year', label: 'Ano', icon: PieChart }
-                    ].map((f) => {
-                        const isLocked = userPlan === 'start' && f.id !== 'day';
-                        return (
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-700 w-fit">
+                        {[
+                            { id: 'day', label: 'Hoje', icon: Clock },
+                            { id: 'week', label: '7D', icon: Calendar },
+                            { id: 'month', label: '30D', icon: TrendingUp },
+                            { id: 'year', label: 'Ano', icon: PieChart }
+                        ].map((f) => {
+                            const isLocked = userPlan === 'start' && !isAdmin && f.id !== 'day';
+                            return (
+                                <button
+                                    key={f.id}
+                                    onClick={() => handleRangeChange(f.id)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${range === f.id
+                                        ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                        : isLocked
+                                            ? 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed'
+                                            : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+                                        }`}
+                                >
+                                    <f.icon className="w-3 h-3" />
+                                    {f.label}
+                                    {isLocked && <span className="text-[8px] bg-amber-500 text-white px-1 rounded-sm ml-1">PRO</span>}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Export Buttons for Growth, Pro and Admin */}
+                    {(userPlan === 'pro' || userPlan === 'growth' || isAdmin) && (
+                        <div className="flex items-center gap-2">
                             <button
-                                key={f.id}
-                                onClick={() => handleRangeChange(f.id)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${range === f.id
-                                    ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                                    : isLocked
-                                        ? 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed'
-                                        : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
-                                    }`}
+                                onClick={exportToExcel}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold border border-emerald-100 dark:border-emerald-900/30 shadow-sm transition-all cursor-pointer"
+                                title="Exportar para Excel"
                             >
-                                <f.icon className="w-3 h-3" />
-                                {f.label}
-                                {isLocked && <span className="text-[8px] bg-amber-500 text-white px-1 rounded-sm ml-1">PRO</span>}
+                                <FileSpreadsheet className="w-4 h-4" />
+                                Exportar Excel
                             </button>
-                        );
-                    })}
+                            <button
+                                onClick={exportToPDF}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold border border-red-100 dark:border-red-900/30 shadow-sm transition-all cursor-pointer"
+                                title="Exportar para PDF"
+                            >
+                                <FileText className="w-4 h-4" />
+                                Exportar PDF
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -470,7 +558,7 @@ export default function AnalyticsDashboard() {
                 </div>
 
                 <div className="p-6 overflow-x-auto relative">
-                    {(userPlan === 'start') && (
+                    {(userPlan === 'start' && !isAdmin) && (
                         <div className="absolute inset-0 z-10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm flex flex-col items-center justify-center">
                             <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-700 text-center max-w-sm mx-4">
                                 <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4">

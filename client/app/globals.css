@@ -68,3 +68,50 @@ body {
   -webkit-text-fill-color: transparent;
   background-image: linear-gradient(to right, #4f46e5, #9333ea, #ec4899);
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Ocultar tudo por padrão no print */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Mostrar apenas a seção de impressão e seus filhos */
+  #print-section, #print-section * {
+    visibility: visible;
+  }
+  
+  #print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Ocultar elementos com classe no-print na impressão */
+  .no-print, .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Otimizações de quebra de página e layout */
+  .page-break {
+    page-break-before: always;
+  }
+  
+  /* Bordas e sombras para impressão */
+  #print-section div {
+    box-shadow: none !important;
+    border-color: #e4e4e7 !important;
+  }
+}
+

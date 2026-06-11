@@ -1,5 +1,5 @@
 # Stage 1: Build the client
-FROM node:20-alpine AS client-builder
+FROM node:20-slim AS client-builder
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm install --ignore-scripts
@@ -7,8 +7,17 @@ COPY client/ ./
 RUN npm run build
 
 # Stage 2: Final image
-FROM node:20-alpine
+FROM node:20-slim
 WORKDIR /app
+
+# Install essential build tools
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    git \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy root package.json for concurrently
 COPY package*.json ./

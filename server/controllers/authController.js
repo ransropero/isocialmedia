@@ -155,4 +155,23 @@ exports.updateUserPlan = async (req, res) => {
     }
 };
 
+exports.socialLoginSuccess = (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Authentication failed' });
+    }
+
+    const token = generateToken(req.user.id);
+    const user = {
+        id: req.user.id,
+        email: req.user.email,
+        isAdmin: req.user.isAdmin
+    };
+
+    // Redirect to frontend with token and user data
+    // In production, you'd want to use a more secure way to pass the token, 
+    // but for this implementation we'll use query params that the client will capture and clear.
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
+};
+
 
