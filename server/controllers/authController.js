@@ -100,6 +100,15 @@ exports.login = async (req, res) => {
 
 exports.getUsers = async (req, res) => {
     try {
+        const bioPagesSnapshot = await db.collection('bio_pages').get();
+        const usersWithPages = new Set();
+        bioPagesSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.userId) {
+                usersWithPages.add(data.userId);
+            }
+        });
+
         const snapshot = await db.collection('users').get();
         const users = snapshot.docs.map(doc => {
             const data = doc.data();
@@ -109,9 +118,18 @@ exports.getUsers = async (req, res) => {
                 hasAccess: data.hasAccess,
                 isAdmin: data.isAdmin,
                 plan: data.plan,
-                createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : null
+                createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt) : null,
+                hasPage: usersWithPages.has(doc.id)
             };
         });
+
+        // Ordenação decrescente por data de criação (mais recentes primeiro)
+        users.sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt) : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt) : 0;
+            return dateB - dateA;
+        });
+
         res.json(users);
     } catch (error) {
         console.error(error);
@@ -172,6 +190,68 @@ exports.socialLoginSuccess = (req, res) => {
     // but for this implementation we'll use query params that the client will capture and clear.
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     res.redirect(`${frontendUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
+};
+
+exports.deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const userDocRef = db.collection('users').doc(userId);
+        const userSnapshot = await userDocRef.get();
+
+        if (!userSnapshot.exists) {
+            return res.status(404).json({ message: 'Usuário não encontrado.' });
+        }
+
+        const userData = userSnapshot.data();
+
+        // 1. Cancelar assinatura ativa no Stripe, se houver
+        if (userData.stripeSubscriptionId && process.env.STRIPE_SECRET_KEY) {
+            try {
+                const apiKey = process.env.STRIPE_SECRET_KEY.replace(/['"\r\n\t ]/g, '');
+                const stripe = require('stripe')(apiKey, {
+                    apiVersion: '2026-05-27.dahlia',
+                });
+                await stripe.subscriptions.cancel(userData.stripeSubscriptionId);
+                console.log(`Assinatura ${userData.stripeSubscriptionId} cancelada para o usuário excluído ${userId}`);
+            } catch (stripeErr) {
+                console.error(`Erro ao cancelar assinatura no Stripe para usuário ${userId}:`, stripeErr.message);
+            }
+        }
+
+        // 2. Deletar Bio Pages associadas
+        const bioPagesSnapshot = await db.collection('bio_pages').where('userId', '==', userId).get();
+        const bioBatch = db.batch();
+        bioPagesSnapshot.docs.forEach(doc => {
+            bioBatch.delete(doc.ref);
+        });
+        await bioBatch.commit();
+
+        // 3. Deletar Posts associados
+        const postsSnapshot = await db.collection('posts').where('userId', '==', userId).get();
+        const postBatch = db.batch();
+        postsSnapshot.docs.forEach(doc => {
+            postBatch.delete(doc.ref);
+        });
+        await postBatch.commit();
+
+        // 4. Deletar o documento do usuário
+        await userDocRef.delete();
+
+        // 5. Decrementar contagem de usuários
+        const statsRef = db.collection('metadata').doc('stats');
+        const statsSnapshot = await statsRef.get();
+        if (statsSnapshot.exists) {
+            const currentCount = statsSnapshot.data().userCount || 1;
+            await statsRef.set({
+                userCount: Math.max(0, currentCount - 1)
+            }, { merge: true });
+        }
+
+        res.json({ message: 'Conta e dados associados excluídos com sucesso.' });
+    } catch (error) {
+        console.error('Delete Account Error:', error);
+        res.status(500).json({ message: 'Erro no servidor ao excluir a conta', error: error.message });
+    }
 };
 
 

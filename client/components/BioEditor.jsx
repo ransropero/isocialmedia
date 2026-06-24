@@ -54,7 +54,7 @@ function SortableItem({ id, children }) {
     );
 }
 
-export default function BioEditor({ onShowPlans }) {
+export default function BioEditor({ onShowPlans, user }) {
     const [bioPages, setBioPages] = useState([]);
     const [selectedPageId, setSelectedPageId] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -115,6 +115,12 @@ export default function BioEditor({ onShowPlans }) {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
+
+    useEffect(() => {
+        if (user?.plan) {
+            setUserPlan(user.plan);
+        }
+    }, [user]);
 
     useEffect(() => {
         fetchBioPages();

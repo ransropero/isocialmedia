@@ -64,9 +64,13 @@ export default function Header({ user, onLogout, onShowPlans }) {
                             )}
                         </div>
                     </div>
-                    <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
+                    <button
+                        onClick={() => router.push('/dashboard/account')}
+                        className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 hover:text-indigo-500 transition-all cursor-pointer"
+                        title="Minha Conta"
+                    >
                         <User className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-                    </div>
+                    </button>
 
                     <button
                         onClick={onLogout}

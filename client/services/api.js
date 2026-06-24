@@ -65,7 +65,7 @@ export const updateBioPage = (id, data) => apiClient.put(`/bio/${id}`, data);
 export const deleteBioPage = (id) => apiClient.delete(`/bio/${id}`);
 export const uploadBioImage = (formData) => apiClient.post('/bio/upload', formData);
 export const trackBioClick = (id, linkIndex) => apiClient.post(`/bio/${id}/click`, { linkIndex });
-export const trackBioVisit = (id, source, referrer) => apiClient.post(`/bio/${id}/visit`, { source, referrer });
+export const trackBioVisit = (id, source, referrer, metadata = {}) => apiClient.post(`/bio/${id}/visit`, { source, referrer, ...metadata });
 export const verifyLinkPassword = (id, linkIndex, password) => apiClient.post(`/bio/${id}/verify-password`, { linkIndex, password });
 export const getBioAnalytics = (id, range = 'month') => apiClient.get(`/bio/${id}/analytics?range=${range}`);
 export const importLinktree = (url) => apiClient.post('/bio/import-linktree', { url });
@@ -93,5 +93,21 @@ export const getWhatsAppCampaignReport = (id) => apiClient.get(`/whatsapp/campai
 export const getSiteAnalytics = (range = 'month') => apiClient.get(`/site-analytics?range=${range}`);
 export const trackSiteVisit = (path, source, referrer) => apiClient.post('/site-analytics/track', { path, source, referrer });
 
+// Stripe
+export const createStripeCheckoutSession = (plan) => apiClient.post('/stripe/checkout', { plan });
+export const createStripePortalSession = () => apiClient.post('/stripe/portal');
+
+// Account Deletion
+export const deleteUserAccount = () => apiClient.delete('/auth/delete-account');
+
+export const verifyStripeSubscription = () => apiClient.post('/stripe/verify');
+
+// Short Links
+export const getShortLinks = () => apiClient.get('/short-links');
+export const createShortLink = (data) => apiClient.post('/short-links', data);
+export const updateShortLink = (id, data) => apiClient.put(`/short-links/${id}`, data);
+export const deleteShortLink = (id) => apiClient.delete(`/short-links/${id}`);
+export const getShortLinkAnalytics = (id) => apiClient.get(`/short-links/${id}/analytics`);
+export const resolveShortLink = (shortCode) => apiClient.get(`/short-links/resolve/${shortCode}`);
 
 export default apiClient;

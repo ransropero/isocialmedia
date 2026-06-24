@@ -280,12 +280,50 @@ exports.trackClick = async (req, res) => {
 exports.trackVisit = async (req, res) => {
     try {
         const { id } = req.params;
-        const { source, referrer } = req.body;
+        const { source, referrer, country: clientCountry, region: clientRegion, city: clientCity, device } = req.body;
+
+        // Tentar obter IP do cliente
+        const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+        const ip = rawIp.split(',')[0].trim();
+
+        let country = clientCountry || 'Desconhecido';
+        let region = clientRegion || 'Desconhecido';
+        let city = clientCity || 'Desconhecido';
+
+        // Se o frontend não enviar dados geográficos válidos, resolvemos pelo IP
+        if (country === 'Desconhecido' && ip && ip !== '127.0.0.1' && ip !== '::1' && !ip.startsWith('10.') && !ip.startsWith('192.168.')) {
+            try {
+                // Tenta ipapi.co
+                const geoRes = await axios.get(`https://ipapi.co/${ip}/json/`, { timeout: 1500 });
+                if (geoRes.data && !geoRes.data.error) {
+                    country = geoRes.data.country_name || 'Desconhecido';
+                    region = geoRes.data.region || 'Desconhecido';
+                    city = geoRes.data.city || 'Desconhecido';
+                }
+            } catch (geoError) {
+                console.error(`Erro ao obter geolocalização ipapi para IP ${ip}:`, geoError.message);
+                // Fallback para ip-api.com
+                try {
+                    const geoResFallback = await axios.get(`http://ip-api.com/json/${ip}`, { timeout: 1500 });
+                    if (geoResFallback.data && geoResFallback.data.status === 'success') {
+                        country = geoResFallback.data.country || 'Desconhecido';
+                        region = geoResFallback.data.regionName || 'Desconhecido';
+                        city = geoResFallback.data.city || 'Desconhecido';
+                    }
+                } catch (fallbackError) {
+                    console.error(`Fallback ip-api para IP ${ip} também falhou:`, fallbackError.message);
+                }
+            }
+        }
 
         await db.collection('bio_visits').add({
             bioPageId: id,
             source: source || 'direct',
             referrer: referrer || '',
+            country,
+            region,
+            city,
+            device: device || 'Desktop',
             userAgent: req.get('User-Agent'),
             timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -398,6 +436,57 @@ exports.getAnalytics = async (req, res) => {
             count: sourceStats[source]
         })).sort((a, b) => b.count - a.count);
 
+        // Processar Geolocalização e Dispositivos
+        let countries = [];
+        let regions = [];
+        let cities = [];
+        let devices = { Mobile: 0, Desktop: 0 };
+        let growth = { visitsGrowthPercent: 0, prevVisitsCount: 0 };
+
+        const isPremium = req.user && (req.user.plan === 'pro' || req.user.plan === 'growth' || req.user.isAdmin);
+
+        if (isPremium) {
+            const countriesMap = {};
+            const regionsMap = {};
+            const citiesMap = {};
+
+            visits.forEach(v => {
+                const dev = v.device || 'Mobile';
+                devices[dev] = (devices[dev] || 0) + 1;
+
+                const country = v.country || 'Desconhecido';
+                const region = v.region || 'Desconhecido';
+                const city = v.city || 'Desconhecido';
+
+                countriesMap[country] = (countriesMap[country] || 0) + 1;
+                regionsMap[region] = (regionsMap[region] || 0) + 1;
+                citiesMap[city] = (citiesMap[city] || 0) + 1;
+            });
+
+            countries = Object.keys(countriesMap).map(c => ({ name: c, count: countriesMap[c] })).sort((a, b) => b.count - a.count);
+            regions = Object.keys(regionsMap).map(r => ({ name: r, count: regionsMap[r] })).sort((a, b) => b.count - a.count);
+            cities = Object.keys(citiesMap).map(c => ({ name: c, count: citiesMap[c] })).sort((a, b) => b.count - a.count);
+
+            // Calcular crescimento com o período anterior
+            const periodDurationMs = now.getTime() - startDate.getTime();
+            const prevStartDate = new Date(startDate.getTime() - periodDurationMs);
+            const prevVisitsSnapshot = await db.collection('bio_visits')
+                .where('bioPageId', '==', id)
+                .where('timestamp', '>=', prevStartDate)
+                .where('timestamp', '<', startDate)
+                .get();
+
+            const prevVisitsCount = prevVisitsSnapshot.size;
+            const currentVisitsCount = visits.length;
+            let visitsGrowthPercent = 0;
+            if (prevVisitsCount > 0) {
+                visitsGrowthPercent = parseFloat((((currentVisitsCount - prevVisitsCount) / prevVisitsCount) * 100).toFixed(1));
+            } else if (currentVisitsCount > 0) {
+                visitsGrowthPercent = 100.0;
+            }
+            growth = { visitsGrowthPercent, prevVisitsCount };
+        }
+
         res.json({
             today: clicks.filter(c => c.timestamp.toDate() >= new Date(new Date().setHours(0, 0, 0, 0))).length,
             todayVisits: visits.filter(v => v.timestamp.toDate() >= new Date(new Date().setHours(0, 0, 0, 0))).length,
@@ -408,7 +497,12 @@ exports.getAnalytics = async (req, res) => {
             totalByLink,
             totalBySource,
             heatmap,
-            history
+            history,
+            countries,
+            regions,
+            cities,
+            devices,
+            growth
         });
     } catch (error) {
         console.error('Error getting analytics:', error);

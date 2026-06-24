@@ -91,6 +91,7 @@ const AdminPanel = () => {
                             <th className="px-8 py-5 text-left whitespace-nowrap">Usuário</th>
                             <th className="px-6 py-5 text-center whitespace-nowrap">Permissão</th>
                             <th className="px-6 py-5 text-center w-64 whitespace-nowrap">Plano do Site</th>
+                            <th className="px-6 py-5 text-center whitespace-nowrap">Possui Página?</th>
                             <th className="px-6 py-5 text-center whitespace-nowrap">Inscrito em</th>
                             <th className="px-6 py-5 text-center whitespace-nowrap">Status</th>
                             <th className="px-8 py-5 text-right whitespace-nowrap">Ações</th>
@@ -147,6 +148,17 @@ const AdminPanel = () => {
                                             </button>
                                         ))}
                                     </div>
+                                </td>
+                                <td className="px-6 py-6 text-center whitespace-nowrap">
+                                    {user.hasPage ? (
+                                        <span className="inline-flex items-center px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-emerald-200 dark:border-emerald-900/30">
+                                            Sim
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center px-2.5 py-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-red-200 dark:border-red-900/30">
+                                            Não
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-6 text-center whitespace-nowrap">
                                     <span className="text-[11px] font-bold text-gray-500 dark:text-zinc-500">

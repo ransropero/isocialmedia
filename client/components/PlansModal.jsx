@@ -1,19 +1,21 @@
-'use client';
-
-import { X, Check, Zap, Rocket, Shield } from 'lucide-react';
+import { useState } from 'react';
+import { X, Check, Zap, Rocket, Shield, Loader2 } from 'lucide-react';
 
 export default function PlansModal({ isOpen, onClose }) {
+    const [loadingPlan, setLoadingPlan] = useState(null);
+
     if (!isOpen) return null;
 
     const plans = [
         {
             name: 'Growth',
+            slug: 'growth',
             icon: <Zap className="w-6 h-6 text-amber-500" />,
-            price: 'R$ 24,90/mês',
-            link: 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=80dd6d01d2a44deb87d3422bebfb762f',
+            price: 'R$ 9,90/mês',
             features: [
                 '1 Bio Page Personalizável',
                 'Até 10 Links no Perfil',
+                'Encurtador de Links (Até 10 links)',
                 'Agendamento de Links',
                 'Restrição de Maior Idade',
                 'Link com Senha',
@@ -25,12 +27,13 @@ export default function PlansModal({ isOpen, onClose }) {
         },
         {
             name: 'Pro',
+            slug: 'pro',
             icon: <Rocket className="w-6 h-6 text-indigo-500" />,
-            price: 'R$ 49,90/mês',
-            link: 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=90b6a90a1a0f44b5a408e3fb715e613b',
+            price: 'R$ 24,90/mês',
             features: [
                 '5 Bio Pages Personalizáveis',
                 'Até 20 Links por Página',
+                'Encurtador de Links (Até 50 links)',
                 'Tudo do Plano Growth',
                 'Remover Logo iSocialMedia',
                 'Estatísticas Avançadas',
@@ -40,6 +43,22 @@ export default function PlansModal({ isOpen, onClose }) {
             highlight: true
         }
     ];
+
+    const handleSubscribe = async (slug) => {
+        try {
+            setLoadingPlan(slug);
+            const { createStripeCheckoutSession } = await import('@/services/api');
+            const res = await createStripeCheckoutSession(slug);
+            if (res.data?.url) {
+                window.location.href = res.data.url;
+            }
+        } catch (error) {
+            console.error('Erro ao processar assinatura:', error);
+            alert('Erro ao iniciar checkout do Stripe. Tente novamente mais tarde.');
+        } finally {
+            setLoadingPlan(null);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-[999] flex items-center justify-center p-6 animate-in fade-in duration-300">
@@ -105,17 +124,20 @@ export default function PlansModal({ isOpen, onClose }) {
                                 ))}
                             </div>
 
-                            <a
-                                href={plan.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`w-full py-4 rounded-2xl font-black text-center transition-all active:scale-95 flex items-center justify-center gap-2 ${plan.highlight
+                            <button
+                                onClick={() => handleSubscribe(plan.slug)}
+                                disabled={loadingPlan !== null}
+                                className={`w-full py-4 rounded-2xl font-black text-center transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${plan.highlight
                                     ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'
                                     : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800'
                                     }`}
                             >
-                                {plan.buttonText}
-                            </a>
+                                {loadingPlan === plan.slug ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    plan.buttonText
+                                )}
+                            </button>
                         </div>
                     ))}
                 </div>
@@ -123,7 +145,7 @@ export default function PlansModal({ isOpen, onClose }) {
                 {/* Footer Info */}
                 <div className="px-8 py-4 bg-zinc-50 dark:bg-zinc-800/80 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-center gap-2">
                     <Shield className="w-4 h-4 text-zinc-400" />
-                    <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Pagamento Seguro via Mercado Pago</span>
+                    <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Pagamento Seguro via Stripe</span>
                 </div>
             </div>
         </div>

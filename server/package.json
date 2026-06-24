@@ -36,7 +36,8 @@
     "pg-hstore": "^2.3.4",
     "pino": "^9.0.0",
     "qrcode": "^1.5.4",
-    "sequelize": "^6.35.0"
+    "sequelize": "^6.35.0",
+    "stripe": "^22.2.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

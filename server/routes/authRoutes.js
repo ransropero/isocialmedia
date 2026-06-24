@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, getUsers, updateUserAccess, updateUserPlan, socialLoginSuccess } = require('../controllers/authController');
+const { register, login, getUsers, updateUserAccess, updateUserPlan, socialLoginSuccess, deleteAccount } = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const passport = require('passport');
@@ -41,6 +41,8 @@ router.get('/me', authMiddleware, (req, res) => {
         hasAccess: req.user.hasAccess
     });
 });
+
+router.delete('/delete-account', authMiddleware, deleteAccount);
 
 // Admin Routes
 router.get('/users', authMiddleware, adminMiddleware, getUsers);

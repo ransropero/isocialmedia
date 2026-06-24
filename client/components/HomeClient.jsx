@@ -22,6 +22,7 @@ export default function HomeClient() {
             features: [
                 '1 Bio Page personalizável',
                 'Até 5 links no perfil',
+                'Encurtador de Links (3 links/expira 30d)',
                 'Temas essenciais',
                 'Agendamento de Posts (3/mês)',
                 'Analytics básico (Hoje)'
@@ -33,13 +34,14 @@ export default function HomeClient() {
         },
         {
             name: 'Growth',
-            price: 'R$ 24,90',
+            price: 'R$ 9,90',
             period: '/mês',
             description: 'Para quem quer crescer com consistência.',
             icon: <Rocket className="w-6 h-6 text-indigo-500" />,
             features: [
                 '1 Bio Page personalizável',
                 'Até 10 links no perfil',
+                'Encurtador de Links (Até 10 links)',
                 'Agendamento de Links',
                 'Restrição de maior idade',
                 'Link com senha',
@@ -53,13 +55,14 @@ export default function HomeClient() {
         },
         {
             name: 'Pro',
-            price: 'R$ 49,90',
+            price: 'R$ 24,90',
             period: '/mês',
             description: 'Performance máxima para marcas e profissionais.',
             icon: <Crown className="w-6 h-6 text-amber-500" />,
             features: [
                 '5 Bio Pages personalizáveis',
                 'Até 20 links por página',
+                'Encurtador de Links (Até 50 links)',
                 'Tudo do plano Growth',
                 'Remover logo iSocialMedia',
                 'Estatísticas avançadas',
@@ -437,6 +440,7 @@ export default function HomeClient() {
                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
                                 {[
                                     { label: 'Links ilimitados', lt: '✗ (plano pago)', ism: '✓' },
+                                    { label: 'Encurtador de Links c/ QR Code', lt: '✗', ism: '✓' },
                                     { label: 'Agendamento integrado', lt: '✗', ism: '✓' },
                                     { label: 'Suporte em português', lt: '✗', ism: '✓' },
                                     { label: 'Identidade visual personalizada', lt: 'Limitado', ism: '✓ Total' },

@@ -25,7 +25,7 @@ export default function PricingClient() {
         },
         {
             name: 'Growth',
-            price: 'R$ 24,90',
+            price: 'R$ 9,90',
             period: '/mês',
             description: 'Para quem quer crescer com consistência.',
             icon: <Rocket className="w-6 h-6 text-indigo-500" />,
@@ -45,7 +45,7 @@ export default function PricingClient() {
         },
         {
             name: 'Pro',
-            price: 'R$ 49,90',
+            price: 'R$ 24,90',
             period: '/mês',
             description: 'Performance máxima para marcas e profissionais.',
             icon: <Crown className="w-6 h-6 text-amber-500" />,

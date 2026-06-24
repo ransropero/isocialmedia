@@ -48,7 +48,16 @@ export default function BioPageClient({ page, slug, apiBase, isPreview = false }
         }
 
         // Track visit
-        trackBioVisit(page.id, source, document.referrer).catch(console.error);
+        const trackWithMetadata = () => {
+            const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const device = isMobileDevice ? 'Mobile' : 'Desktop';
+
+            trackBioVisit(page.id, source, document.referrer, {
+                device
+            }).catch(console.error);
+        };
+
+        trackWithMetadata();
     }, [page?.id, isPreview]);
 
     useEffect(() => {

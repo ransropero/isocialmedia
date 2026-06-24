@@ -42,6 +42,9 @@ app.use((req, res, next) => {
     next();
 });
 
+// Stripe Webhook (precisa receber raw body para validação de assinatura)
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), require('./controllers/stripeController').handleWebhook);
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -62,6 +65,8 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/bio', require('./routes/bioRoutes'));
 app.use('/api/whatsapp', require('./routes/whatsappRoutes'));
 app.use('/api/site-analytics', require('./routes/siteAnalyticsRoutes'));
+app.use('/api/stripe', require('./routes/stripeRoutes'));
+app.use('/api/short-links', require('./routes/shortLinkRoutes'));
 
 
 console.log('[BOOT] Backend startup sequence completed.');

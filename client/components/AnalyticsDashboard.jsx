@@ -6,7 +6,7 @@ import {
     BarChart3, TrendingUp, Calendar, MousePointer2, Loader2,
     AlertCircle, RefreshCw, Clock, PieChart, ChevronDown, Layers,
     Eye, Share2, Smartphone, Globe, Instagram, Facebook, MessageCircle,
-    FileSpreadsheet, FileText
+    FileSpreadsheet, FileText, MapPin, Laptop
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -15,7 +15,7 @@ import {
     PieChart as RePieChart, Pie, Legend
 } from 'recharts';
 
-export default function AnalyticsDashboard() {
+export default function AnalyticsDashboard({ user, onShowPlans }) {
     const [analytics, setAnalytics] = useState(null);
     const [bioPages, setBioPages] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -26,6 +26,19 @@ export default function AnalyticsDashboard() {
     const [userPlan, setUserPlan] = useState('start');
     const [isAdmin, setIsAdmin] = useState(false);
     const [showUpgradeWarning, setShowUpgradeWarning] = useState(false);
+    const [geoTab, setGeoTab] = useState('city'); // country, region, city
+
+    useEffect(() => {
+        if (user?.plan) {
+            setUserPlan(user.plan);
+            setIsAdmin(!!user.isAdmin);
+            if (user.plan === 'start' && !user.isAdmin) {
+                setRange('day');
+            } else {
+                setRange('month');
+            }
+        }
+    }, [user]);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
@@ -202,6 +215,8 @@ export default function AnalyticsDashboard() {
 
     const heatmapData = buildHeatmapGrid();
 
+    const isPremium = userPlan === 'pro' || userPlan === 'growth' || isAdmin;
+
     return (
         <div id="print-section" className="space-y-8 animate-fade-in-up">
             {/* Print-only Header */}
@@ -213,20 +228,20 @@ export default function AnalyticsDashboard() {
 
             {/* Page Selector & Range Filter */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm no-print">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl text-indigo-600 dark:text-indigo-400">
+                <div className="flex items-center gap-4 w-full lg:w-auto min-w-0">
+                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl text-indigo-600 dark:text-indigo-400 shrink-0">
                         <Layers className="w-6 h-6" />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                         <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Analisando Página</div>
-                        <div className="relative group">
+                        <div className="relative group w-full min-w-0">
                             <select
                                 value={bioPageId}
                                 onChange={(e) => handlePageChange(e.target.value)}
-                                className="appearance-none bg-transparent pr-8 text-xl font-bold focus:outline-none cursor-pointer text-zinc-900 dark:text-zinc-50"
+                                className="appearance-none bg-transparent pr-8 text-base sm:text-xl font-bold focus:outline-none cursor-pointer text-zinc-900 dark:text-zinc-50 w-full truncate"
                             >
                                 {bioPages.map(page => (
-                                    <option key={page.id} value={page.id}>
+                                    <option key={page.id} value={page.id} className="text-zinc-900 dark:text-zinc-900">
                                         /{page.slug} {page.userEmail ? `(${page.userEmail})` : ''}
                                     </option>
                                 ))}
@@ -304,14 +319,22 @@ export default function AnalyticsDashboard() {
                 ].map((stat, i) => (
                     <div key={i} className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
                         <div className={`absolute top-0 right-0 w-24 h-24 ${stat.bg} rounded-bl-full -mr-8 -mt-8 opacity-50 transition-transform group-hover:scale-110`}></div>
-                        <div className="relative z-10">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className={`p-2.5 ${stat.bg} rounded-xl ${stat.color}`}>
-                                    <stat.icon className="w-5 h-5" />
+                        <div className="relative z-10 flex flex-col justify-between h-full min-h-[100px]">
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className={`p-2.5 ${stat.bg} rounded-xl ${stat.color}`}>
+                                        <stat.icon className="w-5 h-5" />
+                                    </div>
                                 </div>
+                                <div className="text-3xl font-black text-zinc-900 dark:text-zinc-50">{stat.value}</div>
+                                <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">{stat.label}</div>
                             </div>
-                            <div className="text-3xl font-black text-zinc-900 dark:text-zinc-50">{stat.value}</div>
-                            <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">{stat.label}</div>
+                            {i === 2 && analytics?.growth && (
+                                <div className={`mt-3 flex items-center gap-1.5 text-xs font-bold ${analytics.growth.visitsGrowthPercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                    <TrendingUp className={`w-3.5 h-3.5 ${analytics.growth.visitsGrowthPercent < 0 ? 'rotate-180 text-rose-500' : 'text-emerald-500'}`} />
+                                    <span>{analytics.growth.visitsGrowthPercent >= 0 ? '+' : ''}{analytics.growth.visitsGrowthPercent}% comparado ao anterior</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -548,6 +571,174 @@ export default function AnalyticsDashboard() {
                 </div>
             </div>
 
+            {/* Audience Analytics (Devices & Location) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
+                {/* Devices Card */}
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Dispositivos dos Visitantes</h3>
+                        <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600 dark:text-indigo-400">
+                            <Smartphone className="w-5 h-5" />
+                        </div>
+                    </div>
+
+                    {!isPremium && (
+                        <div className="absolute inset-0 z-10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                            <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-700 text-center max-w-sm mx-4">
+                                <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Smartphone className="w-6 h-6" />
+                                </div>
+                                <h4 className="text-lg font-black mb-2 text-zinc-900 dark:text-zinc-50">Métricas de Dispositivos</h4>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 font-medium">Descubra se seus visitantes acessam sua bio pelo celular ou computador.</p>
+                                <button
+                                    onClick={onShowPlans}
+                                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 cursor-pointer"
+                                >
+                                    Fazer Upgrade
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className={!isPremium ? "space-y-6 opacity-20 pointer-events-none" : "space-y-6"}>
+                        {(() => {
+                            const mobileCount = analytics?.devices?.Mobile || 0;
+                            const desktopCount = analytics?.devices?.Desktop || 0;
+                            const totalDevices = mobileCount + desktopCount;
+                            const mobilePercent = totalDevices > 0 ? ((mobileCount / totalDevices) * 100).toFixed(1) : 0;
+                            const desktopPercent = totalDevices > 0 ? ((desktopCount / totalDevices) * 100).toFixed(1) : 0;
+
+                            return (
+                                <div className="space-y-4">
+                                    {/* Mobile Progress */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between text-sm font-bold">
+                                            <div className="flex items-center gap-2">
+                                                <Smartphone className="w-4 h-4 text-indigo-500" />
+                                                <span className="text-zinc-600 dark:text-zinc-300">Celular (Mobile)</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-zinc-400">{mobileCount} visitas</span>
+                                                <span className="text-zinc-900 dark:text-zinc-50">{mobilePercent}%</span>
+                                            </div>
+                                        </div>
+                                        <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-indigo-500 transition-all duration-1000"
+                                                style={{ width: `${mobilePercent}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Desktop Progress */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between text-sm font-bold">
+                                            <div className="flex items-center gap-2">
+                                                <Laptop className="w-4 h-4 text-blue-500" />
+                                                <span className="text-zinc-600 dark:text-zinc-300">Computador (Desktop)</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-zinc-400">{desktopCount} visitas</span>
+                                                <span className="text-zinc-900 dark:text-zinc-50">{desktopPercent}%</span>
+                                            </div>
+                                        </div>
+                                        <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-blue-500 transition-all duration-1000"
+                                                style={{ width: `${desktopPercent}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+                </div>
+
+                {/* Geolocalizacao Card */}
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Localização dos Visitantes</h3>
+                        <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400">
+                            <MapPin className="w-5 h-5" />
+                        </div>
+                    </div>
+
+                    {!isPremium && (
+                        <div className="absolute inset-0 z-10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                            <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-700 text-center max-w-sm mx-4">
+                                <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <MapPin className="w-6 h-6" />
+                                </div>
+                                <h4 className="text-lg font-black mb-2 text-zinc-900 dark:text-zinc-50">Geolocalização Detalhada</h4>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 font-medium">Saiba de quais países, estados e cidades vêm os cliques na sua bio.</p>
+                                <button
+                                    onClick={onShowPlans}
+                                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 cursor-pointer"
+                                >
+                                    Fazer Upgrade
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className={!isPremium ? "space-y-4 opacity-20 pointer-events-none" : "space-y-4"}>
+                        <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 w-fit mb-4">
+                            {[
+                                { id: 'city', label: 'Cidades' },
+                                { id: 'region', label: 'Estados' },
+                                { id: 'country', label: 'Países' }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setGeoTab(tab.id)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${geoTab === tab.id
+                                        ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+                                        }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="space-y-3 max-h-[160px] overflow-y-auto pr-2">
+                            {(() => {
+                                const items = geoTab === 'city' ? analytics?.cities : geoTab === 'region' ? analytics?.regions : analytics?.countries;
+                                if (!items || items.length === 0) {
+                                    return (
+                                        <div className="text-center py-6 text-zinc-400 italic text-xs">
+                                            Nenhum dado registrado neste período.
+                                        </div>
+                                    );
+                                }
+                                const total = items.reduce((sum, item) => sum + item.count, 0);
+                                return items.map((item, idx) => {
+                                    const percent = total > 0 ? ((item.count / total) * 100).toFixed(1) : 0;
+                                    return (
+                                        <div key={idx} className="space-y-1">
+                                            <div className="flex items-center justify-between text-xs font-bold">
+                                                <span className="text-zinc-600 dark:text-zinc-300 truncate max-w-[150px]">{item.name}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-zinc-400">{item.count} visitas</span>
+                                                    <span className="text-zinc-900 dark:text-zinc-50">{percent}%</span>
+                                                </div>
+                                            </div>
+                                            <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-emerald-500 transition-all duration-1000"
+                                                    style={{ width: `${percent}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Heatmap Section */}
             <div className={`bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden mb-6 relative`}>
                 <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
@@ -567,8 +758,8 @@ export default function AnalyticsDashboard() {
                                 <h4 className="text-lg font-black mb-2 text-zinc-900 dark:text-zinc-50">Recurso Premium</h4>
                                 <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 font-medium">Veja quais os melhores horários para postar com o mapa de calor de cliques.</p>
                                 <button
-                                    onClick={() => window.location.href = '/pricing'}
-                                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex justify-center items-center gap-2"
+                                    onClick={onShowPlans}
+                                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 cursor-pointer"
                                 >
                                     Fazer Upgrade
                                 </button>

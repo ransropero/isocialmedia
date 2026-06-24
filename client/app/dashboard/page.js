@@ -22,7 +22,20 @@ export default function DashboardPage() {
             }
 
             try {
-                const { getCurrentUser } = await import('@/services/api');
+                const { getCurrentUser, verifyStripeSubscription } = await import('@/services/api');
+                
+                // Se retornar de um pagamento de sucesso, força a verificação no Stripe
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('payment') === 'success') {
+                    try {
+                        await verifyStripeSubscription();
+                    } catch (verifyErr) {
+                        console.error('Erro na verificação automática da assinatura:', verifyErr);
+                    }
+                    // Limpar os parâmetros de busca da URL de forma limpa
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+
                 const userData = await getCurrentUser();
                 setUser(userData);
                 localStorage.setItem('user', JSON.stringify(userData));
